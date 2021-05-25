@@ -14,6 +14,7 @@ import threading
 import random
 
 from settings import *
+from keyboards_list import *
 
 
 vk_session = vk_api.VkApi(token=token)
@@ -29,30 +30,21 @@ upload = VkUpload(vk_session)
 
 settings_keyboard = dict(one_time=False, inline=False)
 
-settings_keyboard = dict(one_time=False, inline=False)
-
 keyboard_ilde = VkKeyboard(**settings_keyboard)
 keyboard_ilde.add_button(label='Ожидайте...', color=VkKeyboardColor.SECONDARY)
-
-
-def isKeyboard(keyboard, value=1):
-	if value == 1:
-		return keyboard.get_keyboard()
-	elif value == 0:
-		return keyboard.get_empty_keyboard()
 
 
 def create_keyboard(keys, sets=settings_keyboard):
 	keyboard = VkKeyboard(**sets)
 	if keys == {}:
-		return isKeyboard(keyboard, 0)
+		return keyboard.get_empty_keyboard()
 		print('12')
 	for key in keys:
 		if isinstance(key, int) == False:
 			keyboard.add_button(label=key, color=keys[key])
 		elif isinstance(key, int) == True:
 			keyboard.add_line()
-	return isKeyboard(keyboard, 1)
+	return keyboard.get_keyboard()
 
 keyboards = {
 	'empty' : create_keyboard(keyboard_empty)
@@ -70,20 +62,31 @@ def send_message_to_user(user, msg, attachment=''):
 	)
 
 
-def send_message_to_user_keyboard(user, msg, status_state, attachment=''):
+def send_message_to_user_keyboard(user, msg, key_state, attachment=''):
 	for place in keyboards:
-		if status_state == place:
-			keyboard = keyboards[place]
+		if key_state == place:
+			keyboard = keyboards[key_state]
 
 	vk_session.method('messages.send',
 		{
 		'user_id': user,
 		'message': msg,
-		'keyboard': keyboards[status_state],
+		'keyboard': keyboards[key_state],
 		'random_id': 0,
-		'attachment': attachment
+		'attachment': photo_messages(attachment)
 		}
 	)
+
+
+def photo_messages(img):
+	photo = 'images/' + img + '.jpg'
+	print('Фото ID: '+photo)
+	url = session_api.photos.getMessagesUploadServer(peer_id=0)['upload_url']
+	res = requests.post(url, files={'photo': open(img, 'rb')}).json()
+	result = session_api.photos.saveMessagesPhoto(**res)[0]
+	photo_name = "photo{}_{}".format(result["owner_id"], result["id"])
+	print('Фото ID: '+photo_name)
+	return photo_name
 
 
 def get_user_name(user_id):
@@ -99,6 +102,11 @@ def create_user(user_id, name, surname):
 	cur.execute("INSERT INTO users VALUES(?,?,?,?,?,?);", user_info)
 	conn.commit()
 
+def change_state(user_id, state):
+	conn = sqlite3.connect('db/main.db')
+	cur = conn.cursor()
+	cur.execute("UPDATE users SET state = ? WHERE user_id = ?", (state, user_id,))
+	conn.commit()
 
 def check_user(user_id):
 	conn = sqlite3.connect('db/main.db')
@@ -142,7 +150,7 @@ for event in longpoll.listen():
 			if allow_to_bot == 1:
 
 				print("ACCESS")
-
+				send_message_to_user_keyboard(event.user_id, 'Hello', 'empty', 'hello')
 
 
 
