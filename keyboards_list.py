@@ -6,11 +6,35 @@ keyboard_idle = {
 	'Ожидайте...' : VkKeyboardColor.SECONDARY
 }
 
-keyboard_city = {
-	'В отель' : VkKeyboardColor.PRIMARY,
-	'В ТРЦ Ситимолл' : VkKeyboardColor.POSITIVE,
+keyboard_main = {
+	'Сменить планету' : VkKeyboardColor.POSITIVE,
+	'Вылазка' : VkKeyboardColor.PRIMARY,
 	1 : '',
-	'В DNS' : VkKeyboardColor.PRIMARY,
+	'Статус корабля' : VkKeyboardColor.SECONDARY
+}
+
+keyboard_sortie = {
+	'Добыча' : VkKeyboardColor.POSITIVE,
+	'Исследование' : VkKeyboardColor.PRIMARY,
+	'Бой' : VkKeyboardColor.NEGATIVE,
+	1 : '',
+	'Назад' : VkKeyboardColor.SECONDARY
+}
+
+keyboard_planets = {
+	'AR-800' : VkKeyboardColor.POSITIVE,
+	'GX-25-70' : VkKeyboardColor.POSITIVE,
+	'SUN-1' : VkKeyboardColor.NEGATIVE,
+	1 : '',
+	'Назад' : VkKeyboardColor.SECONDARY
+}
+
+
+keyboard_test = {
+	'Сменить планету' : VkKeyboardColor.PRIMARY,
+	'Вылазка' : VkKeyboardColor.POSITIVE,
+	1 : '',
+	'Статус корабля' : VkKeyboardColor.PRIMARY,
 	'К развлечениям' : VkKeyboardColor.POSITIVE,
 }
 

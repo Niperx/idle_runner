@@ -5,6 +5,7 @@ from vk_api.utils import get_random_id
 from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 
+import os.path
 import json
 import requests
 from datetime import datetime
@@ -12,6 +13,8 @@ import time
 import sqlite3
 import threading
 import random
+from PIL import Image, ImageDraw, ImageFont
+#pip install Pillow
 
 from settings import *
 from keyboards_list import *
@@ -47,7 +50,10 @@ def create_keyboard(keys, sets=settings_keyboard):
 	return keyboard.get_keyboard()
 
 keyboards = {
-	'empty' : create_keyboard(keyboard_empty)
+	'empty' : create_keyboard(keyboard_empty),
+	'main' : create_keyboard(keyboard_main),
+	'planets' : create_keyboard(keyboard_planets),
+	'sortie' : create_keyboard(keyboard_sortie)
 }
 
 
@@ -71,22 +77,37 @@ def send_message_to_user_keyboard(user, msg, key_state, attachment=''):
 		{
 		'user_id': user,
 		'message': msg,
-		'keyboard': keyboards[key_state],
+		'keyboard': keyboard,
 		'random_id': 0,
-		'attachment': photo_messages(attachment)
+		'attachment': attachment
 		}
 	)
 
 
 def photo_messages(img):
-	photo = 'images/' + img + '.jpg'
-	print('Фото ID: '+photo)
+	img = 'images/' + img + '.jpg'
 	url = session_api.photos.getMessagesUploadServer(peer_id=0)['upload_url']
 	res = requests.post(url, files={'photo': open(img, 'rb')}).json()
 	result = session_api.photos.saveMessagesPhoto(**res)[0]
 	photo_name = "photo{}_{}".format(result["owner_id"], result["id"])
 	print('Фото ID: '+photo_name)
 	return photo_name
+
+
+def get_user_ship(user_id):
+	fullname = get_user_name(user_id)
+	fullname = fullname[0]+' '+fullname[1]
+	img = Image.open('images/ship1.jpg')
+	font = ImageFont.truetype('fonts/Pattaya-Regular.ttf', size=34)
+	draw_text = ImageDraw.Draw(img)
+	draw_text.text(
+		(25, img.height - 60),
+		fullname,
+		font=font,
+		fill='#ffffff'
+	)
+	img.save('images/user_ships/ship' + str(user_id) + '.jpg')
+	# return photo_messages('user_ships/ship' + str(user_id))
 
 
 def get_user_name(user_id):
@@ -96,11 +117,12 @@ def get_user_name(user_id):
 
 
 def create_user(user_id, name, surname):
-	user_info = (user_id, 1, 100, 0, None, datetime.now())
+	user_info = (user_id, 1, 100, None, None, 1.1, datetime.now())
 	conn = sqlite3.connect('db/main.db')
 	cur = conn.cursor()
 	cur.execute("INSERT INTO users VALUES(?,?,?,?,?,?);", user_info)
 	conn.commit()
+	get_user_ship(user_id)
 
 def change_state(user_id, state):
 	conn = sqlite3.connect('db/main.db')
@@ -117,6 +139,13 @@ def check_user(user_id):
 		return 0
 	else:
 		return 1
+
+def check_status(user_id):
+	conn = sqlite3.connect('db/main.db')
+	cur = conn.cursor()
+	cur.execute("SELECT state, state_info FROM users WHERE user_id = ?", (user_id,))
+	one_result = cur.fetchone()
+	return one_result
 
 # def create_db(): # Создание БД (одноразовая функция)
 # 	conn = sqlite3.connect('db/main.db')
@@ -148,18 +177,38 @@ for event in longpoll.listen():
 			print('Доступ: '+str(allow_to_bot))
 
 			if allow_to_bot == 1:
+				status = check_status(event.user_id)
+				state = status[0]
+				state_info = status[1]
+				print('Занятость: '+str(state))
 
-				print("ACCESS")
-				send_message_to_user_keyboard(event.user_id, 'Hello', 'empty', 'hello')
+				if state == None:
 
+					if response == 'привет' or response == 'hello':
+						hello_img = photo_messages('hello')
+						send_message_to_user_keyboard(event.user_id, 'Hello', 'empty', hello_img)
 
+					elif response == 'корабль' or response == 'ship' or response == 'статус корабля':
+						ship_img = photo_messages('user_ships/ship' + str(event.user_id))
+						send_message_to_user_keyboard(event.user_id, 'Ваш корабль', 'main', ship_img)
 
+					elif response == 'сменить планету':
+						send_message_to_user_keyboard(event.user_id, 'Выберите планету:', 'planets')
 
+					elif response == 'вылазка':
+						send_message_to_user_keyboard(event.user_id, 'Выберите вашу цель визита на планету:', 'sortie')
+
+					elif response == 'назад':
+						send_message_to_user_keyboard(event.user_id, 'Вы вернулись в панель управления кораблём:', 'main')
+
+				# elif state == 1:
+
+				# 	if response == 'отмена':
 
 
 			elif allow_to_bot == 0:
 				if response == 'начать' or response == 'start':
 					create_user(event.user_id, fullname[0], fullname[1])
-					send_message_to_user(event.user_id, 'Добро пожаловать на ваш космический корабль, '+ fullname[0] + ' ' + fullname[1] +'!')
+					send_message_to_user_keyboard(event.user_id, 'Добро пожаловать на ваш космический корабль, '+ fullname[0] + ' ' + fullname[1] +'!', 'main')
 
 		print('/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\ \n \n \n')
