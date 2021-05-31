@@ -5,6 +5,7 @@ from vk_api.utils import get_random_id
 from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 
+import math
 import os.path
 import json
 import requests
@@ -71,13 +72,13 @@ def send_message_to_user(user, msg, attachment=''):
 def send_message_to_user_keyboard(user, msg, key_state, attachment=''):
 	for place in keyboards:
 		if key_state == place:
-			keyboard = keyboards[key_state]
+			key_state = keyboards[key_state]
 
 	vk_session.method('messages.send',
 		{
 		'user_id': user,
 		'message': msg,
-		'keyboard': keyboard,
+		'keyboard': key_state,
 		'random_id': 0,
 		'attachment': attachment
 		}
@@ -117,10 +118,10 @@ def get_user_name(user_id):
 
 
 def create_user(user_id, name, surname):
-	user_info = (user_id, 1, 100, None, None, 1.1, datetime.now())
+	user_info = (user_id, 1, 100, None, None, 1.0, datetime.now())
 	conn = sqlite3.connect('db/main.db')
 	cur = conn.cursor()
-	cur.execute("INSERT INTO users VALUES(?,?,?,?,?,?);", user_info)
+	cur.execute("INSERT INTO users VALUES(?,?,?,?,?,?,?);", user_info)
 	conn.commit()
 	get_user_ship(user_id)
 
@@ -143,7 +144,7 @@ def check_user(user_id):
 def check_status(user_id):
 	conn = sqlite3.connect('db/main.db')
 	cur = conn.cursor()
-	cur.execute("SELECT state, state_info FROM users WHERE user_id = ?", (user_id,))
+	cur.execute("SELECT state, state_info, planet FROM users WHERE user_id = ?", (user_id,))
 	one_result = cur.fetchone()
 	return one_result
 
@@ -180,6 +181,7 @@ for event in longpoll.listen():
 				status = check_status(event.user_id)
 				state = status[0]
 				state_info = status[1]
+				state_planet = status[2]
 				print('Занятость: '+str(state))
 
 				if state == None:
@@ -193,6 +195,31 @@ for event in longpoll.listen():
 						send_message_to_user_keyboard(event.user_id, 'Ваш корабль', 'main', ship_img)
 
 					elif response == 'сменить планету':
+						keybd = VkKeyboard(**sets)
+						keys = {}
+						xp = round(state_planet)
+						yp = sp + 0.5
+						x = 0
+						while xp < yp:
+							name = 'Планета №' + str(x)
+							if x = 0:
+								name = 'Станция №' + str(xp)
+							x += 1
+							if state_planet != xp:
+								color = VkKeyboardColor.POSITIVE
+							else:
+								color = VkKeyboardColor.NEGATIVE
+							xp + 0.1
+							keys.update()
+
+
+						keybd1 = {
+								'AR-800' : VkKeyboardColor.POSITIVE,
+								'GX-25-70' : VkKeyboardColor.POSITIVE,
+								'SUN-1' : VkKeyboardColor.NEGATIVE,
+								1 : '',
+								'Назад' : VkKeyboardColor.SECONDARY
+							}
 						send_message_to_user_keyboard(event.user_id, 'Выберите планету:', 'planets')
 
 					elif response == 'вылазка':
