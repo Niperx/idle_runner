@@ -23,12 +23,20 @@ keyboard_sortie = {
 	'Назад' : VkKeyboardColor.SECONDARY
 }
 
-keyboard_planets = {
-	'AR-800' : VkKeyboardColor.POSITIVE,
-	'GX-25-70' : VkKeyboardColor.POSITIVE,
-	'SUN-1' : VkKeyboardColor.NEGATIVE,
-	1 : '',
-	'Назад' : VkKeyboardColor.SECONDARY
+keyboard_planets1 = {
+	10 : ['Станция', VkKeyboardColor.PRIMARY],
+	11 : ['AR-800', VkKeyboardColor.POSITIVE],
+	12 : ['GX-25-70', VkKeyboardColor.POSITIVE],
+	13 : ['SUN-1', VkKeyboardColor.POSITIVE]
+}
+
+keyboard_planets2 = {
+	20 : ['Станция', VkKeyboardColor.PRIMARY],
+	21 : ['Leroy', VkKeyboardColor.POSITIVE],
+	22 : ['Bally-01', VkKeyboardColor.POSITIVE],
+	23 : ['Keros', VkKeyboardColor.POSITIVE],
+	24 : ['Simlo-2', VkKeyboardColor.POSITIVE],
+	25 : ['Delo', VkKeyboardColor.POSITIVE]
 }
 
 keyboard_sys_escape = {

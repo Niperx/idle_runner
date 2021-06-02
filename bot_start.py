@@ -53,10 +53,14 @@ def create_keyboard(keys, sets=settings_keyboard):
 keyboards = {
 	'empty' : create_keyboard(keyboard_empty),
 	'main' : create_keyboard(keyboard_main),
-	'planets' : create_keyboard(keyboard_planets),
+	# 'planets' : create_keyboard(keyboard_planets),
 	'sortie' : create_keyboard(keyboard_sortie)
 }
 
+keys_planet = {
+	10 : keyboard_planets1,
+	20 : keyboard_planets2
+}
 
 def send_message_to_user(user, msg, attachment=''):
 	vk_session.method('messages.send',
@@ -135,10 +139,10 @@ def create_user(user_id, name, surname):
 	conn.commit()
 	get_user_ship(user_id)
 
-def change_state(user_id, state):
+def change_state(user_id, state, state_info):
 	conn = sqlite3.connect('db/main.db')
 	cur = conn.cursor()
-	cur.execute("UPDATE users SET state = ? WHERE user_id = ?", (state, user_id,))
+	cur.execute("UPDATE users SET state = ?, state_info = ? WHERE user_id = ?", (state, state_info, user_id,))
 	conn.commit()
 
 def change_planet(user_id, planet):
@@ -202,69 +206,92 @@ for event in longpoll.listen():
 
 				if state == None:
 
-					if response == 'привет' or response == 'hello':
-						hello_img = photo_messages('hello')
-						send_message_to_user_keyboard(event.user_id, 'Hello', 'empty', hello_img)
+					if state_info == 'выбор планеты':
+						planet = keys_planet[int(state_planet // 10 * 10)]
+						for key in planet:
+							if response == planet[key][0].lower():
+								if state_planet != key:
+									# Перелёт
+									change_planet(event.user_id, key)
+									change_state(event.user_id, None, None)
+									send_message_to_user_keyboard(event.user_id, 'Вы перелетели на планету ' + planet[key][0], 'main')
 
-					elif response == 'корабль' or response == 'ship' or response == 'статус корабля':
-						ship_img = photo_messages('user_ships/ship' + str(event.user_id))
-						send_message_to_user_keyboard(event.user_id, 'Ваш корабль', 'main', ship_img)
+					elif state_info == None:
 
-					# elif response == 'покинуть планетную систему':
+						if response == 'привет' or response == 'hello':
+							hello_img = photo_messages('hello')
+							send_message_to_user_keyboard(event.user_id, 'Hello', 'main', hello_img)
+
+						elif response == 'корабль' or response == 'ship' or response == 'статус корабля':
+							ship_img = photo_messages('user_ships/ship' + str(event.user_id))
+							send_message_to_user_keyboard(event.user_id, 'Ваш корабль', 'main', ship_img)
+
+						# elif response == 'покинуть планетную систему':
+							# ТАК ЖЕ КАК И ПЛАНЕТЫ СО СТАТУСОМ
+
+						elif response == 'сменить планету':
+							keyboard = VkKeyboard(**settings_keyboard)
+							cur_planet = int(state_planet // 10 * 10)
+							print(cur_planet)
+							planet = keys_planet[cur_planet]
+							x = 0
+							for key in planet:
+								if x != 0 and x % 3 == 0:
+									keyboard.add_line()
+								if key != state_planet:
+									keyboard.add_button(label=planet[key][0], color=planet[key][1])
+								x += 1
+							keyboard.add_line()
+							keyboard.add_button(label='Назад', color=VkKeyboardColor.SECONDARY)
+							keys = keyboard.get_keyboard()
+							change_state(event.user_id, None, 'выбор планеты')
+							send_message_to_user_keys(event.user_id, 'Выберите планету:', keys)
 
 
+						# elif response == 'сменить планету':
+						# 	keybd = VkKeyboard(**settings_keyboard)
+						# 	xp = int(state_planet // 10 * 10)
+						# 	print(xp)
+						# 	yp = xp + 5
+						# 	x = 0
+						# 	while xp <= yp:
+						# 		if x != 0 and x % 3 == 0:
+						# 			keybd.add_line()
+						# 		if x == 0 and state_planet != xp:
+						# 			name = 'Станция'
+						# 			keybd.add_button(label=name, color=VkKeyboardColor.PRIMARY)
+						# 		else:
+						# 			name = 'Планета №' + str(xp % 10)
+						# 		if state_planet != xp and x != 0:
+						# 			keybd.add_button(label=name, color=VkKeyboardColor.POSITIVE)
+						# 		print(xp)
+						# 		xp += 1
+						# 		x += 1
+						# 	keybd.add_line()
+						# 	keybd.add_button(label='Назад', color=VkKeyboardColor.SECONDARY)
+						# 	keys = keybd.get_keyboard()
 
-					elif response == 'сменить планету':
-						keybd = VkKeyboard(**settings_keyboard)
-						xp = int(state_planet // 10 * 10)
-						print(xp)
-						yp = xp + 5
-						x = 0
-						while xp <= yp:
-							if x != 0 and x % 3 == 0:
-								keybd.add_line()
-							if x == 0 and state_planet != xp:
-								name = 'Станция'
-								keybd.add_button(label=name, color=VkKeyboardColor.PRIMARY)
-							else:
-								name = 'Планета №' + str(xp % 10)
-							if state_planet != xp and x != 0:
-								keybd.add_button(label=name, color=VkKeyboardColor.POSITIVE)
-							# elif state_planet == xp and x != 0:
-							# 	keybd.add_button(label=name, color=VkKeyboardColor.NEGATIVE)
-							print(xp)
-							xp += 1
-							x += 1
-						keybd.add_line()
-						keybd.add_button(label='Назад', color=VkKeyboardColor.SECONDARY)
-						keys = keybd.get_keyboard()
-						# keybd1 = {
-						# 		'AR-800' : VkKeyboardColor.POSITIVE,
-						# 		'GX-25-70' : VkKeyboardColor.POSITIVE,
-						# 		'SUN-1' : VkKeyboardColor.NEGATIVE,
-						# 		1 : '',
-						# 		'Назад' : VkKeyboardColor.SECONDARY
-						# 	}
-						send_message_to_user_keys(event.user_id, 'Выберите планету:', keys)
+						# 	send_message_to_user_keys(event.user_id, 'Выберите планету:', keys)
 
-					elif 'планета №' in response:
-						num_planet = int(state_planet // 10 * 10 + int(response[response.find('№')+1:]))
-						print(num_planet)
-						if state_planet != num_planet:
-							change_planet(event.user_id, num_planet)
-							send_message_to_user_keyboard(event.user_id, 'Вы перелетели на планету №' + str(num_planet), 'main')
-						elif state_planet != num_planet:
-							send_message_to_user(event.user_id, 'Вы уже находитесь на данной планете')
+						# elif 'планета №' in response:
+						# 	num_planet = int(state_planet // 10 * 10 + int(response[response.find('№')+1:]))
+						# 	print(num_planet)
+						# 	if state_planet != num_planet:
+						# 		change_planet(event.user_id, num_planet)
+						# 		send_message_to_user_keyboard(event.user_id, 'Вы перелетели на планету №' + str(num_planet), 'main')
+						# 	elif state_planet != num_planet:
+						# 		send_message_to_user(event.user_id, 'Вы уже находитесь на данной планете')
 
-					elif response == 'станция':
-						num_station = int(state_planet // 10 * 10)
-						change_planet(event.user_id, num_station)
-						send_message_to_user_keyboard(event.user_id, 'Вы прибыли на станцию', 'main')
+						# elif response == 'станция':
+						# 	num_station = int(state_planet // 10 * 10)
+						# 	change_planet(event.user_id, num_station)
+						# 	send_message_to_user_keyboard(event.user_id, 'Вы прибыли на станцию', 'main')
 
-					elif response == 'вылазка':
-						send_message_to_user_keyboard(event.user_id, 'Выберите вашу цель визита на планету:', 'sortie')
+						elif response == 'вылазка':
+							send_message_to_user_keyboard(event.user_id, 'Выберите вашу цель визита на планету:', 'sortie')
 
-					elif response == 'назад':
+					if response == 'назад':
+						change_state(event.user_id, None, None)
 						send_message_to_user_keyboard(event.user_id, 'Вы вернулись в панель управления кораблём:', 'main')
 
 				# elif state == 1:
