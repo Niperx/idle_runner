@@ -52,8 +52,8 @@ def create_keyboard(keys, sets=settings_keyboard):
 
 keyboards = {
 	'empty' : create_keyboard(keyboard_empty),
+	'idle' : create_keyboard(keyboard_idle),
 	'main' : create_keyboard(keyboard_main),
-	# 'planets' : create_keyboard(keyboard_planets),
 	'sortie' : create_keyboard(keyboard_sortie)
 }
 
@@ -130,19 +130,18 @@ def get_user_name(user_id):
 	fullname = [user[0]['first_name'], user[0]['last_name']]
 	return fullname
 
-
 def create_user(user_id, name, surname):
-	user_info = (user_id, 1, 100, None, None, 1.0, datetime.now())
+	user_info = (user_id, 1, 100, None, None, 1.0, datetime.now(), None)
 	conn = sqlite3.connect('db/main.db')
 	cur = conn.cursor()
-	cur.execute("INSERT INTO users VALUES(?,?,?,?,?,?,?);", user_info)
+	cur.execute("INSERT INTO users VALUES(?,?,?,?,?,?,?,?);", user_info)
 	conn.commit()
 	get_user_ship(user_id)
 
-def change_state(user_id, state, state_info):
+def change_state(user_id, state, state_info, time):
 	conn = sqlite3.connect('db/main.db')
 	cur = conn.cursor()
-	cur.execute("UPDATE users SET state = ?, state_info = ? WHERE user_id = ?", (state, state_info, user_id,))
+	cur.execute("UPDATE users SET state = ?, state_info = ?, end_time = ? WHERE user_id = ?", (state, state_info, time, user_id,))
 	conn.commit()
 
 def change_planet(user_id, planet):
@@ -164,9 +163,38 @@ def check_user(user_id):
 def check_status(user_id):
 	conn = sqlite3.connect('db/main.db')
 	cur = conn.cursor()
-	cur.execute("SELECT state, state_info, planet FROM users WHERE user_id = ?", (user_id,))
+	cur.execute("SELECT state, state_info, planet, end_time FROM users WHERE user_id = ?", (user_id,))
 	one_result = cur.fetchone()
 	return one_result
+
+def create_travel(user_id, state_planet, where):
+	state_on = 1
+	state_off = None
+	state_info = 'в полёте'
+	timesl = abs(state_planet - where) * 15
+
+	# time_now = int(datetime.now().timestamp())
+	# y = x + 600
+	# time_y = datetime.fromtimestamp(y).strftime('%Y-%m-%d %H:%M:%S')
+	end_time = datetime.fromtimestamp(int(datetime.now().timestamp()) + timesl).strftime('%Y-%m-%d %H:%M:%S')
+	# z = abs(x-y)
+
+	# timesl = abs(state_planet - where) * 10
+	# print(timesl)
+
+	change_state(event.user_id, state_on, state_info, end_time)
+
+	time.sleep(timesl)
+
+	change_state(event.user_id, None, None, None)
+	change_planet(event.user_id, where)
+	
+	if where % 10 == 0:
+		send_message_to_user_keyboard(event.user_id, 'Вы прилетели на местную станцию', 'main')
+	else:
+		send_message_to_user_keyboard(event.user_id, 'Вы прилетели к планете ' + planet[where][0], 'main')
+
+
 
 # def create_db(): # Создание БД (одноразовая функция)
 # 	conn = sqlite3.connect('db/main.db')
@@ -202,23 +230,32 @@ for event in longpoll.listen():
 				state = status[0]
 				state_info = status[1]
 				state_planet = status[2]
+				end_time = status[3]
 				print('Занятость: '+str(state))
 
 				if state == None:
 
-					if state_info == 'выбор планеты':
+					if state_info == 'выбор планеты': # СТАТУС ВЫБОРА ПЛАНЕТЫ
 						planet = keys_planet[int(state_planet // 10 * 10)]
 						for key in planet:
 							if response == planet[key][0].lower():
 								if state_planet != key:
 									# Перелёт
-									change_planet(event.user_id, key)
-									change_state(event.user_id, None, None)
-									send_message_to_user_keyboard(event.user_id, 'Вы перелетели на планету ' + planet[key][0], 'main')
+									travel = threading.Thread(target=create_travel, args=(event.user_id, state_planet, key,))
+									if key % 10 == 0:
+										send_message_to_user_keyboard(event.user_id, 'Вылетаем на станцию...', 'idle')
+									else:
+										send_message_to_user_keyboard(event.user_id, 'Вылетаем на планету ' + planet[key][0] + '...', 'idle')
+									travel.start()
 
-					elif state_info == None:
+					elif state_info == None: # НЕТ СТАТУСА
 
 						if response == 'привет' or response == 'hello':
+							x = int(datetime.now().timestamp())
+							y = x + 600
+							time_y = datetime.fromtimestamp(y).strftime('%Y-%m-%d %H:%M:%S')
+							z = abs(x-y)
+
 							hello_img = photo_messages('hello')
 							send_message_to_user_keyboard(event.user_id, 'Hello', 'main', hello_img)
 
@@ -244,57 +281,27 @@ for event in longpoll.listen():
 							keyboard.add_line()
 							keyboard.add_button(label='Назад', color=VkKeyboardColor.SECONDARY)
 							keys = keyboard.get_keyboard()
-							change_state(event.user_id, None, 'выбор планеты')
+							change_state(event.user_id, None, 'выбор планеты', None) # СТАТУС ВО ВРЕМЯ СМЕНЫ ПЛАНЕТЫ
 							send_message_to_user_keys(event.user_id, 'Выберите планету:', keys)
 
-
-						# elif response == 'сменить планету':
-						# 	keybd = VkKeyboard(**settings_keyboard)
-						# 	xp = int(state_planet // 10 * 10)
-						# 	print(xp)
-						# 	yp = xp + 5
-						# 	x = 0
-						# 	while xp <= yp:
-						# 		if x != 0 and x % 3 == 0:
-						# 			keybd.add_line()
-						# 		if x == 0 and state_planet != xp:
-						# 			name = 'Станция'
-						# 			keybd.add_button(label=name, color=VkKeyboardColor.PRIMARY)
-						# 		else:
-						# 			name = 'Планета №' + str(xp % 10)
-						# 		if state_planet != xp and x != 0:
-						# 			keybd.add_button(label=name, color=VkKeyboardColor.POSITIVE)
-						# 		print(xp)
-						# 		xp += 1
-						# 		x += 1
-						# 	keybd.add_line()
-						# 	keybd.add_button(label='Назад', color=VkKeyboardColor.SECONDARY)
-						# 	keys = keybd.get_keyboard()
-
-						# 	send_message_to_user_keys(event.user_id, 'Выберите планету:', keys)
-
-						# elif 'планета №' in response:
-						# 	num_planet = int(state_planet // 10 * 10 + int(response[response.find('№')+1:]))
-						# 	print(num_planet)
-						# 	if state_planet != num_planet:
-						# 		change_planet(event.user_id, num_planet)
-						# 		send_message_to_user_keyboard(event.user_id, 'Вы перелетели на планету №' + str(num_planet), 'main')
-						# 	elif state_planet != num_planet:
-						# 		send_message_to_user(event.user_id, 'Вы уже находитесь на данной планете')
-
-						# elif response == 'станция':
-						# 	num_station = int(state_planet // 10 * 10)
-						# 	change_planet(event.user_id, num_station)
-						# 	send_message_to_user_keyboard(event.user_id, 'Вы прибыли на станцию', 'main')
 
 						elif response == 'вылазка':
 							send_message_to_user_keyboard(event.user_id, 'Выберите вашу цель визита на планету:', 'sortie')
 
 					if response == 'назад':
-						change_state(event.user_id, None, None)
+						change_state(event.user_id, None, None, None)
 						send_message_to_user_keyboard(event.user_id, 'Вы вернулись в панель управления кораблём:', 'main')
 
-				# elif state == 1:
+				elif state == 1:
+
+					if response == 'ожидайте...':
+
+						x = int(datetime.now().timestamp())
+						y = datetime.fromisoformat(end_time).timestamp()
+						z = int(abs(x-y))
+						send_message_to_user_keyboard(event.user_id, 'До окончания полёта осталось: ' + str(z) 	+ ' секунд.', 'idle')
+
+
 
 				# 	if response == 'отмена':
 
