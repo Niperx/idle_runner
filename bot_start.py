@@ -172,15 +172,8 @@ def create_travel(user_id, state_planet, where):
 	state_off = None
 	state_info = 'в полёте'
 	timesl = abs(state_planet - where) * 15
-
-	# time_now = int(datetime.now().timestamp())
-	# y = x + 600
-	# time_y = datetime.fromtimestamp(y).strftime('%Y-%m-%d %H:%M:%S')
 	end_time = datetime.fromtimestamp(int(datetime.now().timestamp()) + timesl).strftime('%Y-%m-%d %H:%M:%S')
-	# z = abs(x-y)
 
-	# timesl = abs(state_planet - where) * 10
-	# print(timesl)
 
 	change_state(event.user_id, state_on, state_info, end_time)
 
