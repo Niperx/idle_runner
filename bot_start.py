@@ -131,7 +131,7 @@ def get_user_name(user_id):
 	return fullname
 
 def create_user(user_id, name, surname):
-	user_info = (user_id, 1, 100, None, None, 1.0, datetime.now(), None)
+	user_info = (user_id, 1, 100, None, None, 10, datetime.now(), None)
 	conn = sqlite3.connect('db/main.db')
 	cur = conn.cursor()
 	cur.execute("INSERT INTO users VALUES(?,?,?,?,?,?,?,?);", user_info)
