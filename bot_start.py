@@ -72,7 +72,6 @@ def send_message_to_user(user, msg, attachment=''):
 		}
 	)
 
-
 def send_message_to_user_keyboard(user, msg, key_state, attachment=''):
 	for place in keyboards:
 		if key_state == place:
@@ -108,22 +107,20 @@ def photo_messages(img):
 	print('Фото ID: '+photo_name)
 	return photo_name
 
-
 def get_user_ship(user_id):
 	fullname = get_user_name(user_id)
 	fullname = fullname[0]+' '+fullname[1]
 	img = Image.open('images/ship1.jpg')
-	font = ImageFont.truetype('fonts/Pattaya-Regular.ttf', size=34)
+	font = ImageFont.truetype('fonts/Bellota-Regular.ttf', size=34)
 	draw_text = ImageDraw.Draw(img)
 	draw_text.text(
-		(25, img.height - 60),
+		(25, img.height / 2 + 30),
 		fullname,
 		font=font,
 		fill='#ffffff'
 	)
 	img.save('images/user_ships/ship' + str(user_id) + '.jpg')
 	# return photo_messages('user_ships/ship' + str(user_id))
-
 
 def get_user_name(user_id):
 	user = session_api.users.get(user_ids=user_id)
@@ -136,7 +133,7 @@ def create_user(user_id, name, surname):
 	cur = conn.cursor()
 	cur.execute("INSERT INTO users VALUES(?,?,?,?,?,?,?,?);", user_info)
 	conn.commit()
-	get_user_ship(user_id)
+	# get_user_ship(user_id)
 
 def change_state(user_id, state, state_info, time):
 	conn = sqlite3.connect('db/main.db')
@@ -225,10 +222,22 @@ for event in longpoll.listen():
 				state_planet = status[2]
 				end_time = status[3]
 				print('Занятость: '+str(state))
+				print('Статус: '+str(state_info))
 
 				if state == None:
 
-					if state_info == 'выбор планеты': # СТАТУС ВЫБОРА ПЛАНЕТЫ
+					if state_info == 'выбор системы': # СТАТУС ВЫБОРА СИСТЕМЫ
+						print('ВЫБОР СИСТЕМЫ')
+						cur_system = int(state_planet // 10 * 10)
+						for key in keyboard_system:
+							if response == keyboard_system[key][0].lower():
+								if cur_system != key:
+									# Перелёт
+									travel = threading.Thread(target=create_travel, args=(event.user_id, state_planet, key,))
+									send_message_to_user_keyboard(event.user_id, 'Вылетаем в систему ' + keyboard_system[key][0] + '...', 'idle')
+									travel.start()
+
+					elif state_info == 'выбор планеты': # СТАТУС ВЫБОРА ПЛАНЕТЫ
 						planet = keys_planet[int(state_planet // 10 * 10)]
 						for key in planet:
 							if response == planet[key][0].lower():
@@ -253,17 +262,31 @@ for event in longpoll.listen():
 							send_message_to_user_keyboard(event.user_id, 'Hello', 'main', hello_img)
 
 						elif response == 'корабль' or response == 'ship' or response == 'статус корабля':
+							get_user_ship(event.user_id)
 							ship_img = photo_messages('user_ships/ship' + str(event.user_id))
 							send_message_to_user_keyboard(event.user_id, 'Ваш корабль', 'main', ship_img)
 
-						# elif response == 'покинуть планетную систему':
-							# ТАК ЖЕ КАК И ПЛАНЕТЫ СО СТАТУСОМ
-
-						elif response == 'сменить планету':
+						elif response == 'покинуть планетную систему': # ВЫБОР СИСТЕМЫ
 							keyboard = VkKeyboard(**settings_keyboard)
-							cur_planet = int(state_planet // 10 * 10)
-							print(cur_planet)
-							planet = keys_planet[cur_planet]
+							cur_system = int(state_planet // 10 * 10)
+							x = 0
+							for key in keyboard_system:
+								if x != 0 and x % 3 == 0:
+									keyboard.add_line()
+								if key != cur_system:
+									keyboard.add_button(label=keyboard_system[key][0], color=keyboard_system[key][1])
+								x += 1
+							keyboard.add_line()
+							keyboard.add_button(label='Назад', color=VkKeyboardColor.SECONDARY)
+							keys = keyboard.get_keyboard()
+							change_state(event.user_id, None, 'выбор системы', None) # СТАТУС ВО ВРЕМЯ СМЕНЫ ПЛАНЕТЫ
+							send_message_to_user_keys(event.user_id, 'Выберите систему:', keys)
+
+						elif response == 'сменить планету': # ВЫБОР ПЛАНЕТЫ
+							keyboard = VkKeyboard(**settings_keyboard)
+							cur_system = int(state_planet // 10 * 10)
+							print(cur_system)
+							planet = keys_planet[cur_system]
 							x = 0
 							for key in planet:
 								if x != 0 and x % 3 == 0:

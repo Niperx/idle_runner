@@ -23,6 +23,14 @@ keyboard_sortie = {
 	'Назад' : VkKeyboardColor.SECONDARY
 }
 
+keyboard_system = {
+	10 : ['Андромеда', VkKeyboardColor.PRIMARY],
+	20 : ['Пиксель', VkKeyboardColor.PRIMARY]
+	# 30 : ['X', VkKeyboardColor.PRIMARY],
+	# 40 : ['Шалом', VkKeyboardColor.PRIMARY],
+	# 50 : ['Охаё', VkKeyboardColor.PRIMARY]
+}
+
 keyboard_planets1 = {
 	10 : ['Станция', VkKeyboardColor.PRIMARY],
 	11 : ['AR-800', VkKeyboardColor.POSITIVE],
