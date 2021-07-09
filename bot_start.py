@@ -164,6 +164,20 @@ def check_status(user_id):
 	one_result = cur.fetchone()
 	return one_result
 
+def check_status_planet(planet):
+	conn = sqlite3.connect('db/main.db')
+	cur = conn.cursor()
+	cur.execute("SELECT * FROM planets WHERE planet = ?", (planet,))
+	one_result = cur.fetchone()
+	return one_result
+
+def check_item(item_id)
+	conn = sqlite3.connect('db/main.db')
+	cur = conn.cursor()
+	cur.execute("SELECT * FROM items WHERE id = ?", (item_id,))
+	one_result = cur.fetchone()
+	return one_result
+
 def create_travel(user_id, state_planet, where):
 	state_on = 1
 	state_off = None
@@ -172,17 +186,51 @@ def create_travel(user_id, state_planet, where):
 	end_time = datetime.fromtimestamp(int(datetime.now().timestamp()) + timesl).strftime('%Y-%m-%d %H:%M:%S')
 
 
-	change_state(event.user_id, state_on, state_info, end_time)
+	change_state(user_id, state_on, state_info, end_time)
 
 	time.sleep(timesl)
 
-	change_state(event.user_id, None, None, None)
-	change_planet(event.user_id, where)
+	change_state(user_id, None, None, None)
+	change_planet(user_id, where)
 	
 	if where % 10 == 0:
-		send_message_to_user_keyboard(event.user_id, 'Вы прилетели на местную станцию', 'main')
+		send_message_to_user_keyboard(user_id, 'Вы прилетели на местную станцию', 'main')
 	else:
-		send_message_to_user_keyboard(event.user_id, 'Вы прилетели к планете ' + planet[where][0], 'main')
+		send_message_to_user_keyboard(user_id, 'Вы подлетели к планете ' + planet[where][0], 'main')
+
+
+def create_sortie(user_id, state_planet):
+	state_on = 2
+	state_off = 3
+	state_info = 'на планете'
+	status_planet = check_status_planet(state_planet)
+
+	change_state(user_id, state_on, state_info, None)
+
+	send_message_to_user_keyboard(user_id, 'Вы приземлились на планету и начали свой путь. \n (Следите за состоянием своего героя)', 'empty')
+
+	while state_on == 2:
+		time.sleep(status_planet[2] + random.randint(-10, 10))
+
+		status = check_status(user_id)
+		state_on = status[0]
+
+		situation = random.randint(1, 10)
+
+		if situation <= 3: # Руда
+			ore = check_item(status_planet[3])
+			text = 'Вы нашли жилу руды и добыли её \n'
+			text += 'Добыто: ' + ore[1] + ' - ' + random.randint(80, 100) + ' шт.'
+			send_message_to_user(user_id, text)
+
+
+		elif situation >= 4: # Исследование
+			pass
+
+
+
+
+
 
 
 
@@ -227,7 +275,6 @@ for event in longpoll.listen():
 				if state == None:
 
 					if state_info == 'выбор системы': # СТАТУС ВЫБОРА СИСТЕМЫ
-						print('ВЫБОР СИСТЕМЫ')
 						cur_system = int(state_planet // 10 * 10)
 						for key in keyboard_system:
 							if response == keyboard_system[key][0].lower():
@@ -252,16 +299,7 @@ for event in longpoll.listen():
 
 					elif state_info == None: # НЕТ СТАТУСА
 
-						if response == 'привет' or response == 'hello':
-							x = int(datetime.now().timestamp())
-							y = x + 600
-							time_y = datetime.fromtimestamp(y).strftime('%Y-%m-%d %H:%M:%S')
-							z = abs(x-y)
-
-							hello_img = photo_messages('hello')
-							send_message_to_user_keyboard(event.user_id, 'Hello', 'main', hello_img)
-
-						elif response == 'корабль' or response == 'ship' or response == 'статус корабля':
+						if response == 'корабль' or response == 'ship' or response == 'статус корабля':
 							get_user_ship(event.user_id)
 							ship_img = photo_messages('user_ships/ship' + str(event.user_id))
 							send_message_to_user_keyboard(event.user_id, 'Ваш корабль', 'main', ship_img)
@@ -301,8 +339,12 @@ for event in longpoll.listen():
 							send_message_to_user_keys(event.user_id, 'Выберите планету:', keys)
 
 
+						# elif response == 'вылазка':
+						# 	send_message_to_user_keyboard(event.user_id, 'Выберите вашу цель визита на планету:', 'sortie')
+
+
 						elif response == 'вылазка':
-							send_message_to_user_keyboard(event.user_id, 'Выберите вашу цель визита на планету:', 'sortie')
+							create_sortie(event.user_id, state_planet)
 
 					if response == 'назад':
 						change_state(event.user_id, None, None, None)
