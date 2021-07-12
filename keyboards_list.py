@@ -6,6 +6,10 @@ keyboard_idle = {
 	'Ожидайте...' : VkKeyboardColor.SECONDARY
 }
 
+keyboard_back = {
+	'Вернуться' : VkKeyboardColor.NEGATIVE
+}
+
 keyboard_main = {
 	'Сменить планету' : VkKeyboardColor.POSITIVE,
 	'Вылазка' : VkKeyboardColor.PRIMARY,

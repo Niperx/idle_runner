@@ -52,6 +52,7 @@ def create_keyboard(keys, sets=settings_keyboard):
 
 keyboards = {
 	'empty' : create_keyboard(keyboard_empty),
+	'back' : create_keyboard(keyboard_back),
 	'idle' : create_keyboard(keyboard_idle),
 	'main' : create_keyboard(keyboard_main),
 	'sortie' : create_keyboard(keyboard_sortie)
@@ -104,14 +105,26 @@ def photo_messages(img):
 	res = requests.post(url, files={'photo': open(img, 'rb')}).json()
 	result = session_api.photos.saveMessagesPhoto(**res)[0]
 	photo_name = "photo{}_{}".format(result["owner_id"], result["id"])
-	print('Фото ID: '+photo_name)
+	print('Фото ID: '+ photo_name)
 	return photo_name
 
 def get_user_ship(user_id):
+	conn = sqlite3.connect('db/main.db')
+	cur = conn.cursor()
+	cur.execute("SELECT item_id, count FROM users_inventory WHERE owner_id = ? and slot = ?", (user_id, 2))
+	items = cur.fetchall()
+	print(items)
+
 	fullname = get_user_name(user_id)
 	fullname = fullname[0]+' '+fullname[1]
+	if len(items) > 0:
+		for item in items:
+			item_info = check_item(item[0])
+			fullname += '\n' + item_info[1] + ' - ' + str(item[1])
+			# print(str(item[0]) + ' - ' + str(item[1]))
+
 	img = Image.open('images/ship1.jpg')
-	font = ImageFont.truetype('fonts/Bellota-Regular.ttf', size=34)
+	font = ImageFont.truetype('fonts/Bellota-Regular.ttf', size=28)
 	draw_text = ImageDraw.Draw(img)
 	draw_text.text(
 		(25, img.height / 2 + 30),
@@ -183,31 +196,54 @@ def add_item(item_id, user_id, value=1, slot=3, active=None):
 	cur = conn.cursor()
 	cur.execute("SELECT size_inventory_player FROM users WHERE user_id = ?", (user_id,))
 	max_slots = cur.fetchone()[0]
-	cur.execute("SELECT * FROM users_inventory WHERE owner_id = ? AND slot = ?", (user_id, 3,))
+	cur.execute("SELECT * FROM users_inventory WHERE owner_id = ? AND slot = ?", (user_id, slot,))
 	slots = cur.fetchall()
-	print(max_slots)
-	print(slots)
-	print(len(slots))
-	print(slots[0][2])
-	print(slots[1][2])
-	for i in range(0, len(slots) - 1):
-		if slots[i][0] == item_id:
-			cur.execute("SELECT count FROM users_inventory WHERE owner_id = ? AND item_id = ?", (user_id, item_id,))
+	# for i in range(0, len(slots) - 1):
+	for slot in slots:
+		if slot[0] == item_id:
+			cur.execute("SELECT count FROM users_inventory WHERE owner_id = ? AND item_id = ? AND slot = ?", (user_id, item_id, slot))
 			value += cur.fetchone()[0]
-			cur.execute("UPDATE users_inventory SET count = ? WHERE owner_id = ? AND item_id = ?", (value, user_id, item_id,))
+			cur.execute("UPDATE users_inventory SET count = ?, reg_time = ? WHERE owner_id = ? AND item_id = ? AND slot = ?", (value, datetime.now(), user_id, item_id, slot,))
 			conn.commit()
-			return 'Предмет добавлен в инвентарь' 
+			return print('Предмет добавлен в инвентарь и стакнут') 
 	if len(slots) >= max_slots:
-		return 'Не достаточно места'
-	elif len(slots) < max_slots:
-		item_info = (item_id, user_id, value, slot, active)
+		return print('Недостаточно места в инвентаре') 
+	if len(slots) < max_slots:
+		item_info = (item_id, user_id, value, slot, active, datetime.now())
 		cur = conn.cursor()
-		cur.execute("INSERT INTO users_inventory VALUES(?,?,?,?,?);", item_info)
+		cur.execute("INSERT INTO users_inventory VALUES(?,?,?,?,?,?);", item_info)
 		conn.commit()
-		return 'Предмет добавлен в инвентарь'
+		return print('Предмет добавлен в инвентарь') 
+
+def get_items(user_id, slot_from, slot_to):
+	conn = sqlite3.connect('db/main.db')
+	cur = conn.cursor()
+	if slot_to == 2:
+		cur.execute("SELECT size_inventory_ship FROM users WHERE user_id = ?", (user_id,))
+		max_slots = cur.fetchone()[0] # Сколько места на корабле
+		cur.execute("SELECT * FROM users_inventory WHERE owner_id = ? AND slot = ?", (user_id, slot_from,))
+		user_slots = cur.fetchall()
+
+		for slot in user_slots:
+			cur.execute("SELECT * FROM users_inventory WHERE owner_id = ? AND slot = ? AND item_id = ?", (user_id, slot_to, slot[0],))
+			current_ship_slot = cur.fetchone()
+			if len(current_ship_slot) != 0:
+				value = current_ship_slot[2] + slot[2]
+				cur.execute("UPDATE users_inventory SET count = ?, reg_time = ? WHERE owner_id = ? AND item_id = ? AND slot = ?", (value, datetime.now(), user_id, slot[0], slot_to,))
+				conn.commit()
+				cur.execute("DELETE FROM users_inventory WHERE item_id = ? AND owner_id = ? AND slot = ?", (slot[0], slot[1], slot[3],))
+				conn.commit()
+			elif len(current_ship_slot) == 0:
+				cur.execute("SELECT * FROM users_inventory WHERE owner_id = ? AND slot = ?", (user_id, slot_to,))
+				ship_slots = cur.fetchall() 
+				now_ship_slots = len(ship_slots) # Кол-во вещей на корабле
+				if now_ship_slots < max_slots:
+					cur.execute("UPDATE users_inventory SET slot = ?, reg_time = ? WHERE owner_id = ? AND item_id = ?", (slot_to, datetime.now(), user_id, slot[0],))
+					conn.commit()
 
 
-	# return result
+
+
 
 def add_money(user_id, value):
 	conn = sqlite3.connect('db/main.db')
@@ -243,9 +279,7 @@ def create_sortie(user_id, state_planet):
 	state_off = 3
 	state_info = 'на планете'
 	status_planet = check_status_planet(state_planet)
-
 	change_state(user_id, state_on, state_info, None)
-
 
 
 	while state_on == 2:
@@ -265,17 +299,27 @@ def create_sortie(user_id, state_planet):
 			add_item(ore[0], user_id, count, 3)
 			send_message_to_user(user_id, text)
 
+		elif situation > 3 and situation < 8: # Хлам
+			trash = check_item(random.choice(status_planet[8].split(',')))
+			text = 'Вы нашли немного хлама \n'
+			text += 'Получено: ' + trash[1]
+			add_item(trash[0], user_id, 1, 3)
+			send_message_to_user(user_id, text)
 
-		elif situation >= 4: # Исследование
+		elif situation >= 8: # Исследование
 			text = 'Вы нашли немного монет \n'
 			count = status_planet[5] + random.randint(-20, 20)
 			text += 'Получено: Кредиты' + ' - ' + str(count) + ' шт.'
 			add_money(user_id, count)
 			send_message_to_user(user_id, text)
 
-		send_message_to_user(user_id, 'Продолжаем путь...')
+		if state_on == 2:
+			send_message_to_user(user_id, 'Продолжаем путь...')
 
-	# change_state(user_id, None, None, None)
+	send_message_to_user_keyboard(user_id, 'Вы возвращаетесь к кораблю...', 'empty')
+	change_state(user_id, 2, 'возвращение с планеты', None)
+	time.sleep(10)
+	change_state(user_id, None, None, None)
 	send_message_to_user_keyboard(user_id, 'Вы вернулись обратно на орбиту', 'main')
 
 
@@ -355,7 +399,6 @@ for event in longpoll.listen():
 							get_user_ship(event.user_id)
 							ship_img = photo_messages('user_ships/ship' + str(event.user_id))
 							send_message_to_user_keyboard(event.user_id, 'Ваш корабль', 'main', ship_img)
-							print(add_item(1, event.user_id))
 
 						elif response == 'покинуть планетную систему': # ВЫБОР СИСТЕМЫ
 							keyboard = VkKeyboard(**settings_keyboard)
@@ -392,13 +435,14 @@ for event in longpoll.listen():
 							send_message_to_user_keys(event.user_id, 'Выберите планету:', keys)
 
 
-						# elif response == 'вылазка':
-						# 	send_message_to_user_keyboard(event.user_id, 'Выберите вашу цель визита на планету:', 'sortie')
+						elif response == 'забрать':
+							get_items(event.user_id, 3, 2)
+							send_message_to_user(event.user_id, 'Вы перенесли предметы на корабль')
 
 
 						elif response == 'вылазка':
 							sortie = threading.Thread(target=create_sortie, args=(event.user_id, state_planet,))
-							send_message_to_user_keyboard(event.user_id, 'Вы вылетаете на планету и начинаете её исследование. \n (Следите за состоянием своего героя)', 'empty')
+							send_message_to_user_keyboard(event.user_id, 'Вы вылетаете на планету и начинаете её исследование. \n (Следите за состоянием своего героя)', 'back')
 							sortie.start()
 
 					if response == 'назад':
@@ -418,7 +462,8 @@ for event in longpoll.listen():
 
 					if response == 'вернуться':
 						change_state(event.user_id, None, None, None)
-						send_message_to_user_keyboard(event.user_id, 'Вы возвращаетесь к кораблю...', 'main')
+						send_message_to_user(event.user_id, 'Подготовка к возрату')
+						
 						
 
 
