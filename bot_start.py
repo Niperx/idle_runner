@@ -113,22 +113,30 @@ def get_user_ship(user_id):
 	cur = conn.cursor()
 	cur.execute("SELECT item_id, count FROM users_inventory WHERE owner_id = ? and slot = ?", (user_id, 2))
 	items = cur.fetchall()
+	cur.execute("SELECT level, cash, planet, ship_id FROM users WHERE user_id = ?", (user_id,))
+	user = cur.fetchone()
+	cur.execute("SELECT name FROM planets WHERE id = ?", (user[2],))
+	planet = cur.fetchone()[0]
 	print(items)
 
 	fullname = get_user_name(user_id)
-	fullname = fullname[0]+' '+fullname[1]
-	if len(items) > 0:
-		for item in items:
-			item_info = check_item(item[0])
-			fullname += '\n' + item_info[1] + ' - ' + str(item[1])
-			# print(str(item[0]) + ' - ' + str(item[1]))
+	info = fullname[0]+' '+fullname[1]
+	info += '\n' + 'Уровень: ' + str(user[0])
+	info += '\n' + 'Кредиты: ' + str(user[1])
+	info += '\n' + 'Планета: ' + str(planet)
 
-	img = Image.open('images/ship1.jpg')
+
+	# if len(items) > 0:
+	# 	for item in items:
+	# 		item_info = check_item(item[0])
+	# 		fullname += '\n' + item_info[1] + ' - ' + str(item[1])
+
+	img = Image.open('images/ship'+str(user[3])+'.jpg')
 	font = ImageFont.truetype('fonts/Bellota-Regular.ttf', size=28)
 	draw_text = ImageDraw.Draw(img)
 	draw_text.text(
 		(25, img.height / 2 + 30),
-		fullname,
+		info,
 		font=font,
 		fill='#ffffff'
 	)
@@ -141,10 +149,10 @@ def get_user_name(user_id):
 	return fullname
 
 def create_user(user_id, name, surname):
-	user_info = (user_id, 1, 100, None, None, 10, datetime.now(), None, 10, 50)
+	user_info = (user_id, 1, 100, None, None, 10, datetime.now(), None, 10, 50, random.randint(1, 3))
 	conn = sqlite3.connect('db/main.db')
 	cur = conn.cursor()
-	cur.execute("INSERT INTO users VALUES(?,?,?,?,?,?,?,?,?,?);", user_info)
+	cur.execute("INSERT INTO users VALUES(?,?,?,?,?,?,?,?,?,?,?);", user_info)
 	conn.commit()
 	# get_user_ship(user_id)
 
@@ -199,9 +207,9 @@ def add_item(item_id, user_id, value=1, slot=3, active=None):
 	cur.execute("SELECT * FROM users_inventory WHERE owner_id = ? AND slot = ?", (user_id, slot,))
 	slots = cur.fetchall()
 	# for i in range(0, len(slots) - 1):
-	for slot in slots:
-		if slot[0] == item_id:
-			cur.execute("SELECT count FROM users_inventory WHERE owner_id = ? AND item_id = ? AND slot = ?", (user_id, item_id, slot))
+	for item in slots:
+		if item[0] == item_id:
+			cur.execute("SELECT count FROM users_inventory WHERE owner_id = ? AND item_id = ? AND slot = ?", (user_id, item_id, slot,))
 			value += cur.fetchone()[0]
 			cur.execute("UPDATE users_inventory SET count = ?, reg_time = ? WHERE owner_id = ? AND item_id = ? AND slot = ?", (value, datetime.now(), user_id, item_id, slot,))
 			conn.commit()
@@ -252,6 +260,7 @@ def add_money(user_id, value):
 	value += cur.fetchone()[0]
 	cur.execute("UPDATE users SET cash = ? WHERE user_id = ?", (value, user_id,))
 	conn.commit()
+	return print('Кредиты зачислены на счёт') 
 
 def create_travel(user_id, state_planet, where):
 	state_on = 1
@@ -294,7 +303,7 @@ def create_sortie(user_id, state_planet):
 		if situation <= 3: # Руда
 			ore = check_item(status_planet[3])
 			text = 'Вы нашли жилу руды и добыли её \n'
-			count = status_planet[4] + random.randint(-20, 20)
+			count = status_planet[4] + random.randint(-5, 10)
 			text += 'Получено: ' + ore[1] + ' - ' + str(count) + ' шт.'
 			add_item(ore[0], user_id, count, 3)
 			send_message_to_user(user_id, text)
