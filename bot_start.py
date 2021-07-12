@@ -128,10 +128,10 @@ def get_user_name(user_id):
 	return fullname
 
 def create_user(user_id, name, surname):
-	user_info = (user_id, 1, 100, None, None, 10, datetime.now(), None)
+	user_info = (user_id, 1, 100, None, None, 10, datetime.now(), None, 10, 50)
 	conn = sqlite3.connect('db/main.db')
 	cur = conn.cursor()
-	cur.execute("INSERT INTO users VALUES(?,?,?,?,?,?,?,?);", user_info)
+	cur.execute("INSERT INTO users VALUES(?,?,?,?,?,?,?,?,?,?);", user_info)
 	conn.commit()
 	# get_user_ship(user_id)
 
@@ -178,37 +178,42 @@ def check_item(item_id):
 	one_result = cur.fetchone()
 	return one_result
 
-def add_item(item_id, user_id, value=1):
+def add_item(item_id, user_id, value=1, slot=3, active=None):
 	conn = sqlite3.connect('db/main.db')
 	cur = conn.cursor()
-	cur.execute("SELECT slot1, slot2, slot3, slot4 FROM users_inventory WHERE user_id = ?", (user_id,))
-	slots = cur.fetchone()
-	free_slot = 0
-	for slot in slots:
-		if slot == slot[:slot.find('x')]:
-			print('до Х: ' + str(slot[:slot.find('x')]))
-			print('после Х: ' + str(slot[slot.find('x'):]))
-
-		elif slot == None:
-			slot = str(item_id) + 'x' + str(value)
-			free_slot += 1
-			break
-
-	if free_slot != 0:
-		result = True
-		cur.execute("UPDATE users_inventory SET slot1 = ?, slot2 = ?, slot3 = ?, slot4 = ? WHERE user_id = ?", (slots[0], slots[1], slots[2], slots[3], user_id,))
+	cur.execute("SELECT size_inventory_player FROM users WHERE user_id = ?", (user_id,))
+	max_slots = cur.fetchone()[0]
+	cur.execute("SELECT * FROM users_inventory WHERE owner_id = ? AND slot = ?", (user_id, 3,))
+	slots = cur.fetchall()
+	print(max_slots)
+	print(slots)
+	print(len(slots))
+	print(slots[0][2])
+	print(slots[1][2])
+	for i in range(0, len(slots) - 1):
+		if slots[i][0] == item_id:
+			cur.execute("SELECT count FROM users_inventory WHERE owner_id = ? AND item_id = ?", (user_id, item_id,))
+			value += cur.fetchone()[0]
+			cur.execute("UPDATE users_inventory SET count = ? WHERE owner_id = ? AND item_id = ?", (value, user_id, item_id,))
+			conn.commit()
+			return 'Предмет добавлен в инвентарь' 
+	if len(slots) >= max_slots:
+		return 'Не достаточно места'
+	elif len(slots) < max_slots:
+		item_info = (item_id, user_id, value, slot, active)
+		cur = conn.cursor()
+		cur.execute("INSERT INTO users_inventory VALUES(?,?,?,?,?);", item_info)
 		conn.commit()
-	elif free_slot == 0:
-		result = False
-		print('Нет места')
+		return 'Предмет добавлен в инвентарь'
 
-	return result
+
+	# return result
 
 def add_money(user_id, value):
 	conn = sqlite3.connect('db/main.db')
 	cur = conn.cursor()
 	cur.execute("SELECT cash FROM users WHERE user_id = ?", (user_id,))
-	value += cur.fetchone()
+	value += cur.fetchone()[0]
 	cur.execute("UPDATE users SET cash = ? WHERE user_id = ?", (value, user_id,))
 	conn.commit()
 
@@ -255,13 +260,17 @@ def create_sortie(user_id, state_planet):
 		if situation <= 3: # Руда
 			ore = check_item(status_planet[3])
 			text = 'Вы нашли жилу руды и добыли её \n'
-			text += 'Получено: ' + ore[1] + ' - ' + str(status_planet[4] + random.randint(-20, 20)) + ' шт.'
+			count = status_planet[4] + random.randint(-20, 20)
+			text += 'Получено: ' + ore[1] + ' - ' + str(count) + ' шт.'
+			add_item(ore[0], user_id, count, 3)
 			send_message_to_user(user_id, text)
 
 
 		elif situation >= 4: # Исследование
 			text = 'Вы нашли немного монет \n'
-			text += 'Получено: Кредиты' + ' - ' + str(status_planet[5] + random.randint(-20, 20)) + ' шт.'
+			count = status_planet[5] + random.randint(-20, 20)
+			text += 'Получено: Кредиты' + ' - ' + str(count) + ' шт.'
+			add_money(user_id, count)
 			send_message_to_user(user_id, text)
 
 		send_message_to_user(user_id, 'Продолжаем путь...')
@@ -346,6 +355,7 @@ for event in longpoll.listen():
 							get_user_ship(event.user_id)
 							ship_img = photo_messages('user_ships/ship' + str(event.user_id))
 							send_message_to_user_keyboard(event.user_id, 'Ваш корабль', 'main', ship_img)
+							print(add_item(1, event.user_id))
 
 						elif response == 'покинуть планетную систему': # ВЫБОР СИСТЕМЫ
 							keyboard = VkKeyboard(**settings_keyboard)
