@@ -5,6 +5,7 @@ from vk_api.utils import get_random_id
 from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 
+
 import math
 import os.path
 import json
@@ -42,7 +43,6 @@ def create_keyboard(keys, sets=settings_keyboard):
 	keyboard = VkKeyboard(**sets)
 	if keys == {}:
 		return keyboard.get_empty_keyboard()
-		print('12')
 	for key in keys:
 		if isinstance(key, int) == False:
 			keyboard.add_button(label=key, color=keys[key])
@@ -185,8 +185,11 @@ def add_item(item_id, user_id, value=1):
 	slots = cur.fetchone()
 	free_slot = 0
 	for slot in slots:
-		if slot == slot.find('x')
-		if slot == None:
+		if slot == slot[:slot.find('x')]:
+			print('до Х: ' + str(slot[:slot.find('x')]))
+			print('после Х: ' + str(slot[slot.find('x'):]))
+
+		elif slot == None:
 			slot = str(item_id) + 'x' + str(value)
 			free_slot += 1
 			break
