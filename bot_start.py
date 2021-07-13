@@ -113,29 +113,47 @@ def get_user_ship(user_id):
 	cur = conn.cursor()
 	cur.execute("SELECT item_id, count FROM users_inventory WHERE owner_id = ? and slot = ?", (user_id, 2))
 	items = cur.fetchall()
+	cur.execute("SELECT item_id, count FROM users_inventory WHERE owner_id = ? and slot = ?", (user_id, 3))
+	cur_items = len(cur.fetchall())
 	cur.execute("SELECT level, cash, planet, ship_id FROM users WHERE user_id = ?", (user_id,))
 	user = cur.fetchone()
+	# if user[2] % 10 != 0:
 	cur.execute("SELECT name FROM planets WHERE id = ?", (user[2],))
 	planet = cur.fetchone()[0]
+	# elif user[2] % 10 == 0:
+	# 	planet = 'Станция'
+	cur.execute("SELECT size_inventory_ship FROM users WHERE user_id = ?", (user_id,))
+	max_ship_slots = cur.fetchone()[0] # Сколько места на корабле
+	cur.execute("SELECT size_inventory_player FROM users WHERE user_id = ?", (user_id,))
+	max_user_slots = cur.fetchone()[0]
 	print(items)
 
 	fullname = get_user_name(user_id)
 	info = fullname[0]+' '+fullname[1]
 	info += '\n' + 'Уровень: ' + str(user[0])
 	info += '\n' + 'Кредиты: ' + str(user[1])
-	info += '\n' + 'Планета: ' + str(planet)
+	info += '\n' + 'Локация: ' + str(planet)
+	info += '\n' + 'Инвентарь (Корабль): [' + str(len(items)) + '/' + str(max_ship_slots) + ']'
+	info += '\n' + 'Инвентарь (Персонаж): [' + str(cur_items) + '/' + str(max_user_slots) + ']'
 
 
 	# if len(items) > 0:
 	# 	for item in items:
 	# 		item_info = check_item(item[0])
 	# 		fullname += '\n' + item_info[1] + ' - ' + str(item[1])
+	TINT_COLOR = (0, 0, 0)  # Black
+	TRANSPARENCY = .25  # Degree of transparency, 0-100%
+	OPACITY = int(255 * TRANSPARENCY)
 
 	img = Image.open('images/ship'+str(user[3])+'.jpg')
 	font = ImageFont.truetype('fonts/Bellota-Regular.ttf', size=28)
-	draw_text = ImageDraw.Draw(img)
+	draw_text = ImageDraw.Draw(img, "RGBA")
+	x, y = (25, img.height / 2 + 30)
+	w, h = draw_text.textsize(info, font)
+	draw_text.rectangle((x - 5, y - 5, x + w + 5, y + h + 10), fill=(0, 0, 0, 75))
+	draw_text.rectangle((x - 5, y - 5, x + w + 5, y + h + 10), outline=(0, 0, 0, 127), width=2)
 	draw_text.text(
-		(25, img.height / 2 + 30),
+		(x, y),
 		info,
 		font=font,
 		fill='#ffffff'
@@ -232,22 +250,28 @@ def get_items(user_id, slot_from, slot_to):
 		cur.execute("SELECT * FROM users_inventory WHERE owner_id = ? AND slot = ?", (user_id, slot_from,))
 		user_slots = cur.fetchall()
 
-		for slot in user_slots:
-			cur.execute("SELECT * FROM users_inventory WHERE owner_id = ? AND slot = ? AND item_id = ?", (user_id, slot_to, slot[0],))
-			current_ship_slot = cur.fetchone()
-			if len(current_ship_slot) != 0:
-				value = current_ship_slot[2] + slot[2]
-				cur.execute("UPDATE users_inventory SET count = ?, reg_time = ? WHERE owner_id = ? AND item_id = ? AND slot = ?", (value, datetime.now(), user_id, slot[0], slot_to,))
-				conn.commit()
-				cur.execute("DELETE FROM users_inventory WHERE item_id = ? AND owner_id = ? AND slot = ?", (slot[0], slot[1], slot[3],))
-				conn.commit()
-			elif len(current_ship_slot) == 0:
-				cur.execute("SELECT * FROM users_inventory WHERE owner_id = ? AND slot = ?", (user_id, slot_to,))
-				ship_slots = cur.fetchall() 
-				now_ship_slots = len(ship_slots) # Кол-во вещей на корабле
-				if now_ship_slots < max_slots:
-					cur.execute("UPDATE users_inventory SET slot = ?, reg_time = ? WHERE owner_id = ? AND item_id = ?", (slot_to, datetime.now(), user_id, slot[0],))
+		if len(user_slots) >= 1:
+
+			for slot in user_slots:
+				cur.execute("SELECT * FROM users_inventory WHERE owner_id = ? AND slot = ? AND item_id = ?", (user_id, slot_to, slot[0],))
+				current_ship_slot = cur.fetchone()
+				if current_ship_slot == None or len(current_ship_slot) == 0:
+					cur.execute("SELECT * FROM users_inventory WHERE owner_id = ? AND slot = ?", (user_id, slot_to,))
+					ship_slots = cur.fetchall() 
+					now_ship_slots = len(ship_slots) # Кол-во вещей на корабле
+					if now_ship_slots < max_slots:
+						cur.execute("UPDATE users_inventory SET slot = ?, reg_time = ? WHERE owner_id = ? AND item_id = ?", (slot_to, datetime.now(), user_id, slot[0],))
+						conn.commit()
+				elif len(current_ship_slot) != 0:
+					value = current_ship_slot[2] + slot[2]
+					cur.execute("UPDATE users_inventory SET count = ?, reg_time = ? WHERE owner_id = ? AND item_id = ? AND slot = ?", (value, datetime.now(), user_id, slot[0], slot_to,))
 					conn.commit()
+					cur.execute("DELETE FROM users_inventory WHERE item_id = ? AND owner_id = ? AND slot = ?", (slot[0], slot[1], slot[3],))
+					conn.commit()
+				
+			return send_message_to_user(user_id, 'Вы перенесли предметы на корабль')
+		else:
+			return send_message_to_user(user_id, 'Инвентарь персонажа пуст')
 
 
 
@@ -305,13 +329,17 @@ def create_sortie(user_id, state_planet):
 			text = 'Вы нашли жилу руды и добыли её \n'
 			count = status_planet[4] + random.randint(-5, 10)
 			text += 'Получено: ' + ore[1] + ' - ' + str(count) + ' шт.'
+			if state_on == 2:
+				text+= '\nПродолжаем путь...'
 			add_item(ore[0], user_id, count, 3)
 			send_message_to_user(user_id, text)
 
-		elif situation > 3 and situation < 8: # Хлам
+		elif situation > 3 and situation < 8 and status_planet[8] != None: # Хлам
 			trash = check_item(random.choice(status_planet[8].split(',')))
 			text = 'Вы нашли немного хлама \n'
 			text += 'Получено: ' + trash[1]
+			if state_on == 2:
+				text+= '\nПродолжаем путь...'
 			add_item(trash[0], user_id, 1, 3)
 			send_message_to_user(user_id, text)
 
@@ -319,11 +347,19 @@ def create_sortie(user_id, state_planet):
 			text = 'Вы нашли немного монет \n'
 			count = status_planet[5] + random.randint(-20, 20)
 			text += 'Получено: Кредиты' + ' - ' + str(count) + ' шт.'
+			if state_on == 2:
+				text+= '\n\nПродолжаем путь...'
 			add_money(user_id, count)
 			send_message_to_user(user_id, text)
 
-		if state_on == 2:
-			send_message_to_user(user_id, 'Продолжаем путь...')
+		else:
+			text = 'Вы ничего не нашли \n'
+			if state_on == 2:
+				text+= '\n\nПродолжаем путь...'
+			send_message_to_user(user_id, text)
+
+		# if state_on == 2:
+		# 	send_message_to_user(user_id, 'Продолжаем путь...')
 
 	send_message_to_user_keyboard(user_id, 'Вы возвращаетесь к кораблю...', 'empty')
 	change_state(user_id, 2, 'возвращение с планеты', None)
@@ -352,138 +388,146 @@ def create_sortie(user_id, state_planet):
 # 	""")
 # 	conn.commit()
 
-for event in longpoll.listen():
-	if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
-		print('\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/')
-		print('Сообщение пришло в: ' + str(datetime.strftime(datetime.now(), "%H:%M:%S")))
-		print('Текст сообщения: ' + str(event.text))
-		print('ID пользователя: ' + str(event.user_id))
-		print('===========================================')
+while True:
+	try:
+		for event in longpoll.listen():
+			if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
+				print('\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/')
+				print('Сообщение пришло в: ' + str(datetime.strftime(datetime.now(), "%H:%M:%S")))
+				print('Текст сообщения: ' + str(event.text))
+				print('ID пользователя: ' + str(event.user_id))
+				print('===========================================')
 
-		if event.from_user and not (event.from_me):
-			response = event.text.lower()
-			text = ''
-			fullname = get_user_name(event.user_id)
-			allow_to_bot = check_user(event.user_id)
-			print('Кто: '+fullname[0]+' '+fullname[1])
-			print('Доступ: '+str(allow_to_bot))
+				if event.from_user and not (event.from_me):
+					response = event.text.lower()
+					text = ''
+					fullname = get_user_name(event.user_id)
+					allow_to_bot = check_user(event.user_id)
+					print('Кто: '+fullname[0]+' '+fullname[1])
+					print('Доступ: '+str(allow_to_bot))
 
-			if allow_to_bot == 1:
-				status = check_status(event.user_id)
-				state = status[0]
-				state_info = status[1]
-				state_planet = status[2]
-				end_time = status[3]
-				print('Занятость: '+str(state))
-				print('Статус: '+str(state_info))
+					if allow_to_bot == 1:
+						status = check_status(event.user_id)
+						state = status[0]
+						state_info = status[1]
+						state_planet = status[2]
+						end_time = status[3]
+						print('Занятость: '+str(state))
+						print('Статус: '+str(state_info))
 
-				if state == None:
+						if state == None:
 
-					if state_info == 'выбор системы': # СТАТУС ВЫБОРА СИСТЕМЫ
-						cur_system = int(state_planet // 10 * 10)
-						for key in keyboard_system:
-							if response == keyboard_system[key][0].lower():
-								if cur_system != key:
-									# Перелёт
-									travel = threading.Thread(target=create_travel, args=(event.user_id, state_planet, key,))
-									send_message_to_user_keyboard(event.user_id, 'Вылетаем в систему ' + keyboard_system[key][0] + '...', 'idle')
-									travel.start()
+							if state_info == 'выбор системы': # СТАТУС ВЫБОРА СИСТЕМЫ
+								cur_system = int(state_planet // 10 * 10)
+								for key in keyboard_system:
+									if response == keyboard_system[key][0].lower():
+										if cur_system != key:
+											# Перелёт
+											travel = threading.Thread(target=create_travel, args=(event.user_id, state_planet, key,))
+											send_message_to_user_keyboard(event.user_id, 'Вылетаем в систему ' + keyboard_system[key][0] + '...', 'idle')
+											travel.start()
 
-					elif state_info == 'выбор планеты': # СТАТУС ВЫБОРА ПЛАНЕТЫ
-						planet = keys_planet[int(state_planet // 10 * 10)]
-						for key in planet:
-							if response == planet[key][0].lower():
-								if state_planet != key:
-									# Перелёт
-									travel = threading.Thread(target=create_travel, args=(event.user_id, state_planet, key,))
-									if key % 10 == 0:
-										send_message_to_user_keyboard(event.user_id, 'Вылетаем на станцию...', 'idle')
-									else:
-										send_message_to_user_keyboard(event.user_id, 'Вылетаем на планету ' + planet[key][0] + '...', 'idle')
-									travel.start()
+							elif state_info == 'выбор планеты': # СТАТУС ВЫБОРА ПЛАНЕТЫ
+								planet = keys_planet[int(state_planet // 10 * 10)]
+								for key in planet:
+									if response == planet[key][0].lower():
+										if state_planet != key:
+											# Перелёт
+											travel = threading.Thread(target=create_travel, args=(event.user_id, state_planet, key,))
+											if key % 10 == 0:
+												send_message_to_user_keyboard(event.user_id, 'Вылетаем на станцию...', 'idle')
+											else:
+												send_message_to_user_keyboard(event.user_id, 'Вылетаем на планету ' + planet[key][0] + '...', 'idle')
+											travel.start()
 
-					elif state_info == None: # НЕТ СТАТУСА
+							elif state_info == None: # НЕТ СТАТУСА
 
-						if response == 'корабль' or response == 'ship' or response == 'статус корабля':
-							get_user_ship(event.user_id)
-							ship_img = photo_messages('user_ships/ship' + str(event.user_id))
-							send_message_to_user_keyboard(event.user_id, 'Ваш корабль', 'main', ship_img)
+								if response == 'корабль' or response == 'ship' or response == 'статус корабля':
+									get_user_ship(event.user_id)
+									ship_img = photo_messages('user_ships/ship' + str(event.user_id))
+									send_message_to_user_keyboard(event.user_id, 'Ваш корабль', 'main', ship_img)
 
-						elif response == 'покинуть планетную систему': # ВЫБОР СИСТЕМЫ
-							keyboard = VkKeyboard(**settings_keyboard)
-							cur_system = int(state_planet // 10 * 10)
-							x = 0
-							for key in keyboard_system:
-								if x != 0 and x % 3 == 0:
+								elif response == 'покинуть планетную систему': # ВЫБОР СИСТЕМЫ
+									keyboard = VkKeyboard(**settings_keyboard)
+									cur_system = int(state_planet // 10 * 10)
+									x = 0
+									for key in keyboard_system:
+										if x != 0 and x % 3 == 0:
+											keyboard.add_line()
+										if key != cur_system:
+											keyboard.add_button(label=keyboard_system[key][0], color=keyboard_system[key][1])
+										x += 1
 									keyboard.add_line()
-								if key != cur_system:
-									keyboard.add_button(label=keyboard_system[key][0], color=keyboard_system[key][1])
-								x += 1
-							keyboard.add_line()
-							keyboard.add_button(label='Назад', color=VkKeyboardColor.SECONDARY)
-							keys = keyboard.get_keyboard()
-							change_state(event.user_id, None, 'выбор системы', None) # СТАТУС ВО ВРЕМЯ СМЕНЫ ПЛАНЕТЫ
-							send_message_to_user_keys(event.user_id, 'Выберите систему:', keys)
+									keyboard.add_button(label='Назад', color=VkKeyboardColor.SECONDARY)
+									keys = keyboard.get_keyboard()
+									change_state(event.user_id, None, 'выбор системы', None) # СТАТУС ВО ВРЕМЯ СМЕНЫ ПЛАНЕТЫ
+									send_message_to_user_keys(event.user_id, 'Выберите систему:', keys)
 
-						elif response == 'сменить планету': # ВЫБОР ПЛАНЕТЫ
-							keyboard = VkKeyboard(**settings_keyboard)
-							cur_system = int(state_planet // 10 * 10)
-							print(cur_system)
-							planet = keys_planet[cur_system]
-							x = 0
-							for key in planet:
-								if x != 0 and x % 3 == 0:
+								elif response == 'сменить планету': # ВЫБОР ПЛАНЕТЫ
+									keyboard = VkKeyboard(**settings_keyboard)
+									cur_system = int(state_planet // 10 * 10)
+									print(cur_system)
+									planet = keys_planet[cur_system]
+									x = 0
+									for key in planet:
+										if x != 0 and x % 3 == 0:
+											keyboard.add_line()
+										if key != state_planet:
+											keyboard.add_button(label=planet[key][0], color=planet[key][1])
+										x += 1
 									keyboard.add_line()
-								if key != state_planet:
-									keyboard.add_button(label=planet[key][0], color=planet[key][1])
-								x += 1
-							keyboard.add_line()
-							keyboard.add_button(label='Назад', color=VkKeyboardColor.SECONDARY)
-							keys = keyboard.get_keyboard()
-							change_state(event.user_id, None, 'выбор планеты', None) # СТАТУС ВО ВРЕМЯ СМЕНЫ ПЛАНЕТЫ
-							send_message_to_user_keys(event.user_id, 'Выберите планету:', keys)
+									keyboard.add_button(label='Назад', color=VkKeyboardColor.SECONDARY)
+									keys = keyboard.get_keyboard()
+									change_state(event.user_id, None, 'выбор планеты', None) # СТАТУС ВО ВРЕМЯ СМЕНЫ ПЛАНЕТЫ
+									send_message_to_user_keys(event.user_id, 'Выберите планету:', keys)
 
 
-						elif response == 'забрать':
-							get_items(event.user_id, 3, 2)
-							send_message_to_user(event.user_id, 'Вы перенесли предметы на корабль')
+								elif response == 'выгрузка инвентаря':
+									get_items(event.user_id, 3, 2)
 
 
-						elif response == 'вылазка':
-							sortie = threading.Thread(target=create_sortie, args=(event.user_id, state_planet,))
-							send_message_to_user_keyboard(event.user_id, 'Вы вылетаете на планету и начинаете её исследование. \n (Следите за состоянием своего героя)', 'back')
-							sortie.start()
+								elif response == 'вылазка':
+									if state_planet % 10 == 0:
+										send_message_to_user(event.user_id, 'Здесь нет возможности высадиться')
+									elif state_planet % 10 != 0:
+										sortie = threading.Thread(target=create_sortie, args=(event.user_id, state_planet,))
+										send_message_to_user_keyboard(event.user_id, 'Вы вылетаете на планету и начинаете её исследование. \n (Следите за состоянием своего героя)', 'back')
+										sortie.start()
 
-					if response == 'назад':
-						change_state(event.user_id, None, None, None)
-						send_message_to_user_keyboard(event.user_id, 'Вы вернулись в панель управления кораблём:', 'main')
+							if response == 'назад':
+								change_state(event.user_id, None, None, None)
+								send_message_to_user_keyboard(event.user_id, 'Вы вернулись в панель управления кораблём:', 'main')
 
-				elif state == 1:
+						elif state == 1:
 
-					if response == 'ожидайте...':
+							if response == 'ожидайте...':
 
-						x = int(datetime.now().timestamp())
-						y = datetime.fromisoformat(end_time).timestamp()
-						z = int(abs(x-y))
-						send_message_to_user_keyboard(event.user_id, 'До окончания полёта осталось: ' + str(z) 	+ ' секунд.', 'idle')
+								x = int(datetime.now().timestamp())
+								y = datetime.fromisoformat(end_time).timestamp()
+								z = int(abs(x-y))
+								send_message_to_user_keyboard(event.user_id, 'До окончания полёта осталось: ' + str(z) 	+ ' секунд.', 'idle')
 
-				elif state == 2:
+						elif state == 2:
 
-					if response == 'вернуться':
-						change_state(event.user_id, None, None, None)
-						send_message_to_user(event.user_id, 'Подготовка к возрату')
-						
-						
+							if response == 'вернуться':
+								change_state(event.user_id, None, None, None)
+								send_message_to_user(event.user_id, 'Подготовка к возрату')
+								
+								
 
 
 
 
-				# 	if response == 'отмена':
+						# 	if response == 'отмена':
 
 
-			elif allow_to_bot == 0:
-				if response == 'начать' or response == 'start':
-					create_user(event.user_id, fullname[0], fullname[1])
-					send_message_to_user_keyboard(event.user_id, 'Добро пожаловать на ваш космический корабль, '+ fullname[0] + ' ' + fullname[1] +'!', 'main')
+					elif allow_to_bot == 0:
+						if response == 'начать' or response == 'start':
+							create_user(event.user_id, fullname[0], fullname[1])
+							send_message_to_user_keyboard(event.user_id, 'Добро пожаловать на ваш космический корабль, '+ fullname[0] + ' ' + fullname[1] +'!', 'main')
 
-		print('/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\ \n \n \n')
+				print('/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\ \n \n \n')
+				
+	except requests.exceptions.ReadTimeout:
+		print("\n Переподключение к серверам ВК \n")
+		time.sleep(3)

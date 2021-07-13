@@ -16,6 +16,8 @@ keyboard_main = {
 	1 : '',
 	'Статус корабля' : VkKeyboardColor.SECONDARY,
 	2 : '',
+	'Выгрузка инвентаря' : VkKeyboardColor.SECONDARY,
+	3 : '',
 	'Покинуть планетную систему' : VkKeyboardColor.NEGATIVE
 }
 
