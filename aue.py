@@ -47,38 +47,46 @@ def get_user_name(user_id):
 	fullname = [user[0]['first_name'], user[0]['last_name']]
 	return fullname
 
+vk_groups = [-27456813, -156666557, -35927256]
 
 def get_quot():
-	quot = session_api.wall.get(owner_id=-27456813, count=50, filter='owner', extended=1)
+	grp = vk_groups[random.randint(0, 2)]
+	print(grp)
+	quot = session_api.wall.get(owner_id=grp, count=50, filter='owner', extended=1)
 	quot_list = []
-	for x in quot['items']:
-		quot_list.append(x['text'])
-	result = quot_list[random.randint(0, len(quot_list))]
+	while len(quot_list) < 25:
+		for x in quot['items']:
+			quot_list.append(x['text'])
+		result = quot_list[random.randint(0, len(quot_list))]
 	return result
 
 
 def get_answer():
 
-	info = get_quot().title()
+	info = get_quot()
 	info = info.replace(', ',',\n')
+	info = info.replace(' и ','\nи ')
 	info = info.replace('. ','.\n')
 	info = info.replace('... ','...\n')
+	info = info.replace('" ','"\n')
+	info = info.replace("' ","'\n")
+
 
 	TINT_COLOR = (0, 0, 0)  # Black
 	TRANSPARENCY = .25  # Degree of transparency, 0-100%
 	OPACITY = int(255 * TRANSPARENCY)
 
 	img = Image.open('images/wolfs/wolf'+str(random.randint(1, 5))+'.jpg')
-	font = ImageFont.truetype('fonts/Bellota-Regular.ttf', size=54)
+	font = ImageFont.truetype('fonts/Bellota-Regular.ttf', size=42)
 	draw_text = ImageDraw.Draw(img, "RGBA")
 	w, h = draw_text.textsize(info, font)
 	x, y = (img.width / 2 - (w/2), img.height / 2 - (h/2))
 	
-	draw_text.rectangle((x - 10, y - 10, x + w + 10, y + h + 10), fill=(0, 0, 0, 75))
-	draw_text.rectangle((x - 10, y - 10, x + w + 10, y + h + 10), outline=(0, 0, 0, 127), width=2)
+	draw_text.rectangle((x - 10, y - 10, x + w + 20, y + h + 20), fill=(0, 0, 0, 75))
+	draw_text.rectangle((x - 10, y - 10, x + w + 20, y + h + 20), outline=(0, 0, 0, 127), width=2)
 	draw_text.text(
 		(x, y),
-		info,
+		info.title(),
 		font=font,
 		fill='#ffffff'
 	)
@@ -128,7 +136,7 @@ for event in longpoll.listen():
 			if 'еблан' in response:
 				send_user_reply(event.user_id, 'Сам такой', event.message_id)
 
-			if 'тест' in response:
+			if 'ауф' in response:
 				photo = get_answer()
 				send_user_reply(event.user_id, '', event.message_id, photo)
 
