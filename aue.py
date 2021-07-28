@@ -70,20 +70,19 @@ def get_answer():
 	info = info.replace('... ','...\n')
 	info = info.replace('" ','"\n')
 	info = info.replace("' ","'\n")
+	info = info.replace(' чем','\nчем')
+	info = info.replace('то что','то\nчто')
 
-
-	TINT_COLOR = (0, 0, 0)  # Black
-	TRANSPARENCY = .25  # Degree of transparency, 0-100%
-	OPACITY = int(255 * TRANSPARENCY)
-
+	maxsize = (1028, 1028)
 	img = Image.open('images/wolfs/wolf'+str(random.randint(1, 5))+'.jpg')
+	img.thumbnail(maxsize, Image.ANTIALIAS)
 	font = ImageFont.truetype('fonts/Bellota-Regular.ttf', size=42)
 	draw_text = ImageDraw.Draw(img, "RGBA")
 	w, h = draw_text.textsize(info, font)
 	x, y = (img.width / 2 - (w/2), img.height / 2 - (h/2))
 	
-	draw_text.rectangle((x - 10, y - 10, x + w + 20, y + h + 20), fill=(0, 0, 0, 75))
-	draw_text.rectangle((x - 10, y - 10, x + w + 20, y + h + 20), outline=(0, 0, 0, 127), width=2)
+	draw_text.rectangle((x - 10, y - 10, x + w + 30, y + h + 20), fill=(0, 0, 0, 150))
+	draw_text.rectangle((x - 10, y - 10, x + w + 30, y + h + 20), outline=(0, 0, 0, 127), width=2)
 	draw_text.text(
 		(x, y),
 		info.title(),
