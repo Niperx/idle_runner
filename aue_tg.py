@@ -19,11 +19,20 @@ vk_session = vk_api.VkApi(token='93f1723b61b66da0a90236b27b0015ad7a57ad49c79d383
 session_api = vk_session.get_api()
 upload = VkUpload(vk_session)
 
-vk_groups = [-27456813, -156666557, -35927256]
+vk_groups_auf = [-27456813, -156666557, -35927256]
 
-def get_quot():
+vk_groups_fams = [-29992234]
+
+vk_groups_gachi = [-198613342]
+
+def get_quot(choice):
 	err = True
-	grp = vk_groups[random.randint(0, 2)]
+	if choice == 'auf':
+		grp = vk_groups_auf[random.randint(0, 2)]
+	elif choice == 'fam':
+		grp = vk_groups_fams[0]
+	elif choice == 'gachi':
+		grp = vk_groups_gachi[0]
 	print(grp)
 	quot = session_api.wall.get(owner_id=grp, count=50, filter='owner', extended=1)
 	quot_list = []
@@ -38,14 +47,17 @@ def get_quot():
 				err = False
 		except IndexError:
 			continue
-	# print(f'Фраза: {result}')
-	print(f'Список: {quot_list}')
+	print(f'Фраза: {result}')
+	# print(f'Список: {quot_list}')
 	return result
 
 
-def get_answer():
+def get_answer(choice):
 
-	info = get_quot()
+	info = emojize(get_quot(choice))
+	if choice == 'fam':
+		info = info[:info.rfind('(с)')]
+		info = info[:info.rfind('   ')]
 	info = info.replace(', ',',\n')
 	info = info.replace(' и ','\nи ')
 	info = info.replace('. ','.\n')
@@ -54,11 +66,22 @@ def get_answer():
 	info = info.replace("' ","'\n")
 	info = info.replace(' чем','\nчем')
 	info = info.replace('то что','то\nчто')
+	info = info.replace('или ','\nили')
+
+
 
 	maxsize = (1028, 1028)
-	img = Image.open('images/wolfs/wolf'+str(random.randint(1, 5))+'.jpg')
+	if choice == 'auf':
+		img = Image.open('images/wolfs/wolf'+str(random.randint(1, 5))+'.jpg')
+		sz = 42
+	elif choice == 'gachi':
+		img = Image.open('images/gachis/gachi1.jpg')
+		sz = 42
+	elif choice == 'fam':
+		img = Image.open('images/fams/family'+str(random.randint(1, 5))+'.jpg')
+		sz = 32
 	img.thumbnail(maxsize, Image.ANTIALIAS)
-	font = ImageFont.truetype('fonts/Bellota-Regular.ttf', size=42)
+	font = ImageFont.truetype('fonts/Bellota-Regular.ttf', size=sz)
 	draw_text = ImageDraw.Draw(img, "RGBA")
 	w, h = draw_text.textsize(info, font)
 	x, y = (img.width / 2 - (w/2), img.height / 2 - (h/2))
@@ -71,7 +94,12 @@ def get_answer():
 		font=font,
 		fill='#ffffff'
 	)
-	img.save('images/wolfs/wolf.jpg')
+	if choice == 'auf':
+		img.save('images/wolfs/wolf.jpg')
+	if choice == 'gachi':
+		img.save('images/gachis/gachi.jpg')
+	elif choice == 'fam':
+		img.save('images/fams/family.jpg')
 
 
 bot = Bot(token='1813315511:AAHXpSNouWe98mBtIUm3wZPze9GhLPWUD4M')
@@ -87,10 +115,26 @@ dp = Dispatcher(bot)
 
 @dp.message_handler(text=['ауф'])
 @dp.message_handler(commands=['auf'])
-async def process_photo_command(message: types.Message):
+async def process_auf_command(message: types.Message):
     caption = 'Какие глазки! :eyes:'
-    get_answer()
+    get_answer('auf')
     imageFile = r"images/wolfs/wolf.jpg"
+    img = open(imageFile, 'rb')
+    await bot.send_photo(message.from_user.id, img, reply_to_message_id=message.message_id)
+
+@dp.message_handler(text=['семья'])
+@dp.message_handler(commands=['family'])
+async def process_photo_command(message: types.Message):
+    get_answer('fam')
+    imageFile = r"images/fams/family.jpg"
+    img = open(imageFile, 'rb')
+    await bot.send_photo(message.from_user.id, img, reply_to_message_id=message.message_id)
+
+@dp.message_handler(text=['гачи'])
+@dp.message_handler(commands=['gachi'])
+async def process_photo_command(message: types.Message):
+    get_answer('gachi')
+    imageFile = r"images/gachis/gachi.jpg"
     img = open(imageFile, 'rb')
     await bot.send_photo(message.from_user.id, img, reply_to_message_id=message.message_id)
 

@@ -47,23 +47,45 @@ def get_user_name(user_id):
 	fullname = [user[0]['first_name'], user[0]['last_name']]
 	return fullname
 
-vk_groups = [-27456813, -156666557, -35927256]
+vk_groups_auf = [-27456813, -156666557, -35927256]
 
-def get_quot():
-	grp = vk_groups[random.randint(0, 2)]
+vk_groups_fams = [-29992234]
+
+vk_groups_gachi = [-198613342]
+
+def get_quot(choice):
+	err = True
+	if choice == 'auf':
+		grp = vk_groups_auf[random.randint(0, 2)]
+	elif choice == 'fam':
+		grp = vk_groups_fams[0]
+	elif choice == 'gachi':
+		grp = vk_groups_gachi[0]
 	print(grp)
 	quot = session_api.wall.get(owner_id=grp, count=50, filter='owner', extended=1)
 	quot_list = []
-	while len(quot_list) < 25:
-		for x in quot['items']:
-			quot_list.append(x['text'])
-		result = quot_list[random.randint(0, len(quot_list))]
+	for x in quot['items']:
+		quot_list.append(x['text'])
+	
+	while err == True:	
+		try:
+			result = quot_list[random.randint(1, len(quot_list))]
+			if len(result) > 25 and 'http' not in result and 'подпис' not in result and 'vk.com' not in result and 'пригла' not in result:
+				# print('\nПОДХОДИТ\n')
+				err = False
+		except IndexError:
+			continue
+	print(f'Фраза: {result}')
+	# print(f'Список: {quot_list}')
 	return result
 
 
-def get_answer():
+def get_answer(choice):
 
-	info = get_quot()
+	info = get_quot(choice)
+	if choice == 'fam':
+		info = info[:info.rfind('(с)')]
+		info = info[:info.rfind('   ')]
 	info = info.replace(', ',',\n')
 	info = info.replace(' и ','\nи ')
 	info = info.replace('. ','.\n')
@@ -72,11 +94,22 @@ def get_answer():
 	info = info.replace("' ","'\n")
 	info = info.replace(' чем','\nчем')
 	info = info.replace('то что','то\nчто')
+	info = info.replace(' то','\nто')
+
+
 
 	maxsize = (1028, 1028)
-	img = Image.open('images/wolfs/wolf'+str(random.randint(1, 5))+'.jpg')
+	if choice == 'auf':
+		img = Image.open('images/wolfs/wolf'+str(random.randint(1, 5))+'.jpg')
+		sz = 42
+	elif choice == 'gachi':
+		img = Image.open('images/gachis/gachi1.jpg')
+		sz = 42
+	elif choice == 'fam':
+		img = Image.open('images/fams/family'+str(random.randint(1, 5))+'.jpg')
+		sz = 32
 	img.thumbnail(maxsize, Image.ANTIALIAS)
-	font = ImageFont.truetype('fonts/Bellota-Regular.ttf', size=42)
+	font = ImageFont.truetype('fonts/Bellota-Regular.ttf', size=sz)
 	draw_text = ImageDraw.Draw(img, "RGBA")
 	w, h = draw_text.textsize(info, font)
 	x, y = (img.width / 2 - (w/2), img.height / 2 - (h/2))
@@ -89,10 +122,17 @@ def get_answer():
 		font=font,
 		fill='#ffffff'
 	)
-	img.save('images/wolfs/wolf.jpg')
+	if choice == 'auf':
+		img.save('images/wolfs/wolf.jpg')
+		img = 'images/wolfs/wolf.jpg'
+	elif choice == 'gachi':
+		img.save('images/gachis/gachi.jpg')
+		img = 'images/gachis/gachi.jpg'
+	elif choice == 'fam':
+		img.save('images/fams/family.jpg')
+		img = 'images/fams/family.jpg'
 	# return photo_messages('user_ships/ship' + str(user_id))
 
-	img = 'images/wolfs/wolf.jpg'
 	url = session_api.photos.getMessagesUploadServer(peer_id=0)['upload_url']
 	res = requests.post(url, files={'photo': open(img, 'rb')}).json()
 	result = session_api.photos.saveMessagesPhoto(**res)[0]
@@ -121,8 +161,16 @@ for event in longpoll.listen():
 			if 'еблан' in response:
 				send_chat_reply(event.chat_id, 'Сам такой', event.message_id)
 
-			if 'ауф' in response:
-				photo = get_answer()
+			elif 'ауф' in response:
+				photo = get_answer('auf')
+				send_chat_reply(event.chat_id, '', event.message_id, photo)
+
+			elif 'семья' in response:
+				photo = get_answer('fam')
+				send_chat_reply(event.chat_id, '', event.message_id, photo)
+
+			elif 'гачи' in response:
+				photo = get_answer('gachi')
 				send_chat_reply(event.chat_id, '', event.message_id, photo)
 
 		if event.from_user and not (event.from_me):
@@ -135,8 +183,16 @@ for event in longpoll.listen():
 			if 'еблан' in response:
 				send_user_reply(event.user_id, 'Сам такой', event.message_id)
 
-			if 'ауф' in response:
-				photo = get_answer()
+			elif 'ауф' in response:
+				photo = get_answer('auf')
+				send_user_reply(event.user_id, '', event.message_id, photo)
+
+			elif 'семья' in response:
+				photo = get_answer('fam')
+				send_user_reply(event.user_id, '', event.message_id, photo)
+
+			elif 'гачи' in response:
+				photo = get_answer('gachi')
 				send_user_reply(event.user_id, '', event.message_id, photo)
 
 
