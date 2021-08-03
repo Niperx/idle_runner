@@ -328,7 +328,7 @@ def create_sortie(user_id, state_planet):
 			ore = check_item(status_planet[3])
 			text = 'Вы нашли жилу руды и добыли её \n'
 			count = status_planet[4] + random.randint(-5, 10)
-			text += 'Получено: ' + ore[1] + ' - ' + str(count) + ' шт.'
+			text += 'Получено: ' + ore[1] + ' - ' + str(count) + ' шт. \n'
 			if state_on == 2:
 				text+= '\nПродолжаем путь...'
 			add_item(ore[0], user_id, count, 3)
