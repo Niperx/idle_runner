@@ -308,55 +308,55 @@ def create_travel(user_id, state_planet, where):
 
 
 def create_sortie(user_id, state_planet):
-	state_on = 2
-	state_off = 3
-	state_info = 'на планете'
-	status_planet = check_status_planet(state_planet)
-	change_state(user_id, state_on, state_info, None)
+	state_on = 2 # Чек на продолжение экспидиции
+	state_off = 3 # Чек на отмену экспидиции (Не нужная переменная, ибо он её берёт сам из профиля(БД) пользователя в строке 321 и 322, при нажатии кнопки "Отмена экспедиции")
+	state_info = 'на планете' # Просто метка статуса у пользователя в профиле
+	status_planet = check_status_planet(state_planet) # Проверка где пользователь на текущий момент
+	change_state(user_id, state_on, state_info, None) # Меняем состояние пользователя на "В экспедиции"
 
 
 	while state_on == 2:
-		time.sleep(status_planet[2] + random.randint(-10, 10))
+		time.sleep(status_planet[2] + random.randint(-10, 10)) # Задаём время выполнения экспедиции: Время с планеты +- 10 сек(рандомно)
 
-		status = check_status(user_id)
-		state_on = status[0]
+		status = check_status(user_id) # Берём статус у пользователя 
+		state_on = status[0] # Переназначаем статус переменной выше
 
-		situation = random.randint(1, 10)
-		print('Рандом: ' + str(situation))
+		situation = random.randint(1, 10) # Рандом ситуации, что пользователю выпадет (Руда, Хлам, Золото)
+		print('Рандом: ' + str(situation)) # Инфа в консоль о том что выпало
 
 		if situation <= 3: # Руда
-			ore = check_item(status_planet[3])
-			text = 'Вы нашли жилу руды и добыли её \n'
-			count = status_planet[4] + random.randint(-5, 10)
-			text += 'Получено: ' + ore[1] + ' - ' + str(count) + ' шт. \n'
-			if state_on == 2:
-				text+= '\nПродолжаем путь...'
-			add_item(ore[0], user_id, count, 3)
-			send_message_to_user(user_id, text)
+			ore = check_item(status_planet[3]) # Берём ID руды с планеты
+			text = 'Вы нашли жилу руды и добыли её \n' # Инфа в чат
+			count = status_planet[4] + random.randint(-5, 10) # Кол-во руды: Кол-во прописанное в планете + рандом шт.
+			text += 'Получено: ' + ore[1] + ' - ' + str(count) + ' шт. \n' # Инфа в чат
+			if state_on == 2: # Если пользователь нажал "Отмена экспидиции" переводим его статус в другое состояние, чтобы закончить цикл с экспидицией
+				text+= '\nПродолжаем путь...' # Инфа в чат
+			add_item(ore[0], user_id, count, 3) # Функция на добавление предмета в инвентарь
+			send_message_to_user(user_id, text) # Функция на вывод текста в чат
 
 		elif situation > 3 and situation < 8 and status_planet[8] != None: # Хлам
-			trash = check_item(random.choice(status_planet[8].split(',')))
-			text = 'Вы нашли немного хлама \n'
-			text += 'Получено: ' + trash[1]
-			if state_on == 2:
-				text+= '\nПродолжаем путь...'
-			add_item(trash[0], user_id, 1, 3)
-			send_message_to_user(user_id, text)
+			trash = check_item(random.choice(status_planet[8].split(','))) # Берём ID хлама с планеты
+			text = 'Вы нашли немного хлама \n' # Инфа в чат
+			text += 'Получено: ' + trash[1] # Инфа в чат
+			if state_on == 2: # Если пользователь нажал "Отмена экспидиции" переводим его статус в другое состояние, чтобы закончить цикл с экспидицией
+				text+= '\nПродолжаем путь...' # Инфа в чат
+			add_item(trash[0], user_id, 1, 3) # Функция на добавление предмета в инвентарь
+			send_message_to_user(user_id, text) # Функция на вывод текста в чат
 
 		elif situation >= 8: # Исследование
-			text = 'Вы нашли немного монет \n'
-			count = status_planet[5] + random.randint(-20, 20)
-			text += 'Получено: Кредиты' + ' - ' + str(count) + ' шт.'
-			if state_on == 2:
-				text+= '\n\nПродолжаем путь...'
-			add_money(user_id, count)
-			send_message_to_user(user_id, text)
+			text = 'Вы нашли немного монет \n' # Инфа в чат
+			count = status_planet[5] + random.randint(-20, 20) #
+			text += 'Получено: Кредиты' + ' - ' + str(count) + ' шт.' # Инфа в чат
+			if state_on == 2: # Если пользователь нажал "Отмена экспидиции" переводим его статус в другое состояние, чтобы закончить цикл с экспидицией
+				text+= '\n\nПродолжаем путь...' # Инфа в чат
+			add_money(user_id, count) # Функция на добавление валюты в профиль пользователя (Валюта не является предметом, у неё нет ID)
+			send_message_to_user(user_id, text) # Функция на вывод текста в чат
 
-		else:
-			text = 'Вы ничего не нашли \n'
-			if state_on == 2:
-				text+= '\n\nПродолжаем путь...'
-			send_message_to_user(user_id, text)
+		else: # Шанс ничего не найти, если рандом никуда не попал
+			text = 'Вы ничего не нашли \n' # Инфа в чат
+			if state_on == 2: # Если пользователь нажал "Отмена экспидиции" переводим его статус в другое состояние, чтобы закончить цикл с экспидицией
+				text+= '\n\nПродолжаем путь...' # Инфа в чат
+			send_message_to_user(user_id, text) # Функция на вывод текста в чат
 
 		# if state_on == 2:
 		# 	send_message_to_user(user_id, 'Продолжаем путь...')
