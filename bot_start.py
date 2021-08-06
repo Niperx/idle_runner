@@ -321,20 +321,20 @@ def create_sortie(user_id, state_planet):
 		status = check_status(user_id) # Берём статус у пользователя 
 		state_on = status[0] # Переназначаем статус переменной выше
 
-		situation = random.randint(1, 10) # Рандом ситуации, что пользователю выпадет (Руда, Хлам, Золото)
+		situation = random.randint(1, 100) # Рандом ситуации, что пользователю выпадет (Руда, Хлам, Золото)
 		print('Рандом: ' + str(situation)) # Инфа в консоль о том что выпало
 
-		if situation <= 3: # Руда
+		if situation <= 20: # Руда
 			ore = check_item(status_planet[3]) # Берём ID руды с планеты
 			text = 'Вы нашли жилу руды и добыли её \n' # Инфа в чат
-			count = status_planet[4] + random.randint(-5, 10) # Кол-во руды: Кол-во прописанное в планете + рандом шт.
+			count = status_planet[4] + random.randint(-5, 5) # Кол-во руды: Кол-во прописанное в планете + рандом шт.
 			text += 'Получено: ' + ore[1] + ' - ' + str(count) + ' шт. \n' # Инфа в чат
 			if state_on == 2: # Если пользователь нажал "Отмена экспидиции" переводим его статус в другое состояние, чтобы закончить цикл с экспидицией
 				text+= '\nПродолжаем путь...' # Инфа в чат
 			add_item(ore[0], user_id, count, 3) # Функция на добавление предмета в инвентарь
 			send_message_to_user(user_id, text) # Функция на вывод текста в чат
 
-		elif situation > 3 and situation < 8 and status_planet[8] != None: # Хлам
+		elif situation > 30 and situation < 50 and status_planet[8] != None: # Хлам
 			trash = check_item(random.choice(status_planet[8].split(','))) # Берём ID хлама с планеты
 			text = 'Вы нашли немного хлама \n' # Инфа в чат
 			text += 'Получено: ' + trash[1] # Инфа в чат
@@ -343,7 +343,7 @@ def create_sortie(user_id, state_planet):
 			add_item(trash[0], user_id, 1, 3) # Функция на добавление предмета в инвентарь
 			send_message_to_user(user_id, text) # Функция на вывод текста в чат
 
-		elif situation >= 8: # Исследование
+		elif situation >= 80: # Исследование
 			text = 'Вы нашли немного монет \n' # Инфа в чат
 			count = status_planet[5] + random.randint(-20, 20) #
 			text += 'Получено: Кредиты' + ' - ' + str(count) + ' шт.' # Инфа в чат
@@ -366,9 +366,6 @@ def create_sortie(user_id, state_planet):
 	time.sleep(10)
 	change_state(user_id, None, None, None)
 	send_message_to_user_keyboard(user_id, 'Вы вернулись обратно на орбиту', 'main')
-
-
-
 
 
 
