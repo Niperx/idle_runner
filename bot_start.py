@@ -29,9 +29,9 @@ longpoll = VkLongPoll(vk_session)
 upload = VkUpload(vk_session)
 
 
-# db_path = 'C://Users//kharo//Desktop//work//sakhproject_longpoll//db//'
-# main_path = 'C://Users//kharo//Desktop//work//sakhproject_longpoll//'
-# img_path = 'C://Users//kharo//Desktop//work//sakhproject_longpoll//images//'
+# db_path = 'db//'
+# main_path = '//'
+# img_path = 'images//'
 
 settings_keyboard = dict(one_time=False, inline=False)
 
